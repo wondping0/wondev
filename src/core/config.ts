@@ -1,5 +1,6 @@
 import path from 'node:path';
-import { parse as parseYaml } from 'yaml';
+import { parse as parseYaml, parseDocument } from 'yaml';
+import { SOURCE_SCHEMA_VERSION } from './schema.js';
 import type {
   NamedTarget,
   RuleDirFrontmatterMap,
@@ -9,7 +10,7 @@ import type {
 } from './model.js';
 import { BUILTIN_TARGETS, DEFAULT_TARGETS, knownTargetNames, resolveAlias } from './registry.js';
 import { WondevError } from '../util/errors.js';
-import { readFileIfExists } from '../util/fs.js';
+import { readFileIfExists, writeFileAtomic } from '../util/fs.js';
 import { isInsideRoot } from '../util/paths.js';
 
 export const WONDEV_DIR = '.wondev';
@@ -19,6 +20,10 @@ export interface WondevConfig {
   name: string;
   targets: string[];
   customTargets: Record<string, Target>;
+  /** Source format version. Absent in a file means 1, the first shape that existed. */
+  schema: number;
+  /** The wondev release that last wrote this file, for diagnostics. */
+  wondevVersion?: string;
 }
 
 export function wondevDir(root: string): string {
@@ -57,6 +62,7 @@ export async function loadConfig(root: string): Promise<WondevConfig> {
     ? obj['name'].trim()
     : path.basename(root);
 
+  const schema = readSchema(obj['schema']);
   const targets = readTargetList(obj['targets']);
   const customTargets = readCustomTargets(obj['customTargets']);
 
@@ -70,7 +76,48 @@ export async function loadConfig(root: string): Promise<WondevConfig> {
     }
   }
 
-  return { name, targets, customTargets };
+  const config: WondevConfig = { name, targets, customTargets, schema };
+  const writtenBy = typeof obj['wondevVersion'] === 'string' ? obj['wondevVersion'] : undefined;
+  if (writtenBy) config.wondevVersion = writtenBy;
+  return config;
+}
+
+/**
+ * A file with no `schema` key predates the stamp, which can only mean version 1. A file
+ * claiming a version this build has never heard of is refused rather than guessed at:
+ * rendering it with older rules would silently produce wrong output.
+ */
+function readSchema(value: unknown): number {
+  if (value === undefined || value === null) return 1;
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1) {
+    throw new WondevError(
+      `${WONDEV_DIR}/${CONFIG_FILE}: "schema" must be a positive integer.`,
+    );
+  }
+  if (value > SOURCE_SCHEMA_VERSION) {
+    throw new WondevError(
+      `This project uses source schema ${value}, but this wondev supports up to ${SOURCE_SCHEMA_VERSION}.`,
+      'Upgrade wondev: npm install -g wondev@latest',
+    );
+  }
+  return value;
+}
+
+/**
+ * Rewrite `schema` and `wondevVersion` in place.
+ *
+ * Uses the YAML document API rather than re-serialising, so the explanatory comments the
+ * init template writes are not destroyed by a migration.
+ */
+export async function stampConfig(root: string, schema: number, version: string): Promise<void> {
+  const file = configPath(root);
+  const raw = await readFileIfExists(file);
+  if (raw === null) throw new WondevError(`No ${WONDEV_DIR}/${CONFIG_FILE} to update.`);
+
+  const doc = parseDocument(raw);
+  doc.set('schema', schema);
+  doc.set('wondevVersion', version);
+  await writeFileAtomic(file, doc.toString({ lineWidth: 0 }));
 }
 
 function readTargetList(value: unknown): string[] {

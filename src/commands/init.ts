@@ -4,7 +4,9 @@ import fs from 'node:fs/promises';
 import { stringify as stringifyYaml } from 'yaml';
 import { CONFIG_FILE, WONDEV_DIR, wondevDir } from '../core/config.js';
 import { BUILTIN_TARGETS, DEFAULT_TARGETS, knownTargetNames, resolveAlias } from '../core/registry.js';
+import { SOURCE_SCHEMA_VERSION } from '../core/schema.js';
 import { WondevError } from '../util/errors.js';
+import { wondevVersion } from '../util/version.js';
 import { copyDir, pathExists, writeFileAtomic } from '../util/fs.js';
 import { info, style, success } from '../util/log.js';
 import { runBuild } from './build.js';
@@ -101,7 +103,16 @@ function renderConfig(name: string, targets: string[]): string {
     '',
   ].join('\n');
 
-  return `${header}${stringifyYaml({ name, targets }, { lineWidth: 0 })}`;
+  const body = stringifyYaml({ name, targets }, { lineWidth: 0 });
+
+  // Stamped at the bottom so the interesting keys stay at the top. These two make the
+  // project identifiable later; a project written without them can never be migrated.
+  const stamp = stringifyYaml(
+    { schema: SOURCE_SCHEMA_VERSION, wondevVersion: wondevVersion() },
+    { lineWidth: 0 },
+  );
+
+  return `${header}${body}\n# Written by wondev. Used to detect when \`wondev migrate\` is needed.\n${stamp}`;
 }
 
 async function countStarterPack(base: string): Promise<{ skills: number; memory: number; commands: number }> {

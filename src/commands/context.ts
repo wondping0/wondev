@@ -1,6 +1,7 @@
 import type { NamedTarget, Project } from '../core/model.js';
 import { loadConfig, resolveTargets, type WondevConfig } from '../core/config.js';
 import { loadProject, type Issue } from '../core/source.js';
+import { assertSchemaCurrent } from '../core/schema.js';
 import { WondevError } from '../util/errors.js';
 
 export interface ProjectContext {
@@ -14,6 +15,11 @@ export interface ProjectContext {
 /** Everything the commands need, loaded once. */
 export async function loadContext(root: string): Promise<ProjectContext> {
   const config = await loadConfig(root);
+
+  // Migration rewrites authored files, so it is never implicit. Reading an older source
+  // shape with current rules would quietly produce wrong output, so this is a hard stop.
+  assertSchemaCurrent(config.schema);
+
   const { project, issues } = await loadProject(root, config.name);
   const targets = resolveTargets(config);
   return { root, config, project, targets, issues };

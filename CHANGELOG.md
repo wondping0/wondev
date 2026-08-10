@@ -1,0 +1,56 @@
+# Changelog
+
+All notable changes to this project are documented here.
+
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
+follows [Semantic Versioning](https://semver.org/) as specified in
+[docs/versioning.md](docs/versioning.md).
+
+Note the local rule: **any change to generated output is at minimum a MINOR release**, never
+a patch, because it makes `wondev check` fail in every project that upgrades.
+
+## [Unreleased]
+
+## [0.1.0] - 2026-08-10
+
+First release.
+
+### Added
+
+- `wondev init` — scaffold `.wondev/` with a starter pack, then build.
+- `wondev build` — compile `.wondev/` into every enabled target. `--force`, `--dry-run`,
+  `--target`.
+- `wondev watch` — debounced rebuild on change.
+- `wondev add <skill|memory|command> <name>` — scaffold one artifact.
+- `wondev check` — validate sources and detect drift; exits 1. Intended for CI.
+- `wondev clean` — remove generated files, per the manifest.
+- `wondev migrate` — bring an older `.wondev/` up to the current source schema.
+- `wondev targets` — list known targets and what reads each one.
+
+- Three render engines covering the field: `single-file`, `rule-dir`, and `claude`.
+- Twelve built-in targets: Claude Code, AGENTS.md, Cursor, GitHub Copilot, Gemini CLI,
+  Windsurf, Cline, Roo Code, Continue, Kiro, Aider, and JetBrains Junie — plus aliases so
+  `codex`, `zed`, `opencode`, `jules`, and others resolve to `AGENTS.md`.
+- `customTargets` in `wondev.yaml`, so an agent with no built-in entry — including one that
+  does not exist yet — is supported by a two-line config addition.
+- Starter pack: six skills (`debugging`, `writing-tests`, `code-review`, `planning-work`,
+  `git-workflow`, `verify-before-done`) and memory scaffolds for architecture, conventions,
+  glossary, and decision records.
+
+### Write safety
+
+- A hashed manifest at `.wondev/.manifest.json` recording every span wondev owns.
+- Build refuses to overwrite a file wondev did not write, or one edited since it did.
+  `--force` overrides.
+- Managed regions, so adopting an existing `AGENTS.md` or `CLAUDE.md` appends a block and
+  preserves every other byte. `clean` strips only that block.
+- Atomic writes via temp file plus rename.
+
+### Versioning
+
+- `schema` and `wondevVersion` stamped into `wondev.yaml` and the manifest, so a future
+  release can identify and migrate a project.
+- Source and manifest formats from a newer wondev are refused with a clear message rather
+  than reinterpreted.
+- `check` distinguishes "you forgot to rebuild" from "wondev changed its output", naming
+  both versions.

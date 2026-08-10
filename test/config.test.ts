@@ -96,6 +96,7 @@ describe('resolveTargets', () => {
       name: 'demo',
       targets: ['codex', 'agents', 'zed'],
       customTargets: {},
+      schema: 1,
     });
     expect(targets).toHaveLength(1);
     expect(targets[0]?.name).toBe('agents');
@@ -106,6 +107,7 @@ describe('resolveTargets', () => {
       name: 'demo',
       targets: ['agents'],
       customTargets: { agents: { engine: 'single-file', path: 'CUSTOM.md', mode: 'whole' } },
+      schema: 1,
     });
     expect(targets[0]?.target).toEqual({ engine: 'single-file', path: 'CUSTOM.md', mode: 'whole' });
   });

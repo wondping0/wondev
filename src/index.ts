@@ -43,4 +43,14 @@ export { runBuild } from './commands/build.js';
 export { runCheck } from './commands/check.js';
 export { runClean } from './commands/clean.js';
 export { runAdd } from './commands/add.js';
+export { runMigrate } from './commands/migrate.js';
 export { runWatch } from './commands/watch.js';
+
+export { SOURCE_SCHEMA_VERSION, MANIFEST_SCHEMA_VERSION } from './core/schema.js';
+export {
+  MIGRATIONS,
+  pendingMigrations,
+  runMigrations,
+  type Migration,
+} from './core/migrate/index.js';
+export { wondevVersion } from './util/version.js';

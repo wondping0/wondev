@@ -7,6 +7,7 @@ import { runBuild } from './commands/build.js';
 import { runCheck } from './commands/check.js';
 import { runClean } from './commands/clean.js';
 import { runInit } from './commands/init.js';
+import { runMigrate } from './commands/migrate.js';
 import { runWatch } from './commands/watch.js';
 import { BUILTIN_TARGETS, TARGET_ALIASES } from './core/registry.js';
 import { isWondevError, WondevError } from './util/errors.js';
@@ -26,6 +27,7 @@ ${style.bold('Commands')}
   add <type> <name>        Add a skill, memory, or command  (type: skill|memory|command)
   check                    Validate sources and detect drift  (exit 1 on failure)
   clean                    Remove generated files listed in the manifest
+  migrate                  Bring an older .wondev/ up to the current source schema
   targets                  List known targets and what reads them
 
 ${style.bold('Options')}
@@ -34,7 +36,7 @@ ${style.bold('Options')}
   --all                    init: enable every known target
   --force                  init: overwrite .wondev/ · build: overwrite conflicting files
   --target <name>          build: build only one target
-  --dry-run                build: show what would change, write nothing
+  --dry-run                build, migrate: show what would change, write nothing
   --no-color               Disable coloured output
   -h, --help               Show this help
   -v, --version            Show version
@@ -158,6 +160,10 @@ async function main(argv: string[]): Promise<number> {
 
     case 'clean':
       await runClean(root);
+      return 0;
+
+    case 'migrate':
+      await runMigrate(root, { dryRun: values['dry-run'] === true });
       return 0;
 
     case 'targets':

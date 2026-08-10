@@ -2,6 +2,7 @@ import { renderAll } from '../core/render/index.js';
 import { loadManifest, planWrites } from '../core/writer.js';
 import { WondevError } from '../util/errors.js';
 import { error, info, style, success, warn } from '../util/log.js';
+import { wondevVersion } from '../util/version.js';
 import { loadContext } from './context.js';
 
 /**
@@ -48,6 +49,19 @@ export async function runCheck(root: string): Promise<void> {
 
   const total = conflicts.length + drifted.length;
   if (total > 0) {
+    const running = wondevVersion();
+    const generatedBy = manifest.wondevVersion;
+
+    // Distinguish "someone forgot to rebuild" from "wondev itself changed its output".
+    // Without this, upgrading wondev turns every downstream CI red with a message that
+    // reads like the user broke something.
+    if (generatedBy && generatedBy !== running && conflicts.length === 0) {
+      throw new WondevError(
+        `${total} generated file(s) were produced by wondev ${generatedBy}, but you are running ${running}.`,
+        'Run `wondev build` to regenerate them with this version, and commit the result.',
+      );
+    }
+
     throw new WondevError(
       `${total} generated file(s) do not match .wondev/.`,
       conflicts.length > 0
