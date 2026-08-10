@@ -1,0 +1,7 @@
+# wondev's whole premise is byte-identical output across platforms, so the repository
+# stores LF and checks out LF everywhere. Without this, a Windows checkout would rewrite
+# the templates to CRLF and every hash in a Linux build would differ.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.gz binary
