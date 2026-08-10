@@ -1,0 +1,87 @@
+import { renderAll } from '../core/render/index.js';
+import { hasErrors } from '../core/source.js';
+import {
+  applyPlan,
+  conflictsIn,
+  describeConflicts,
+  loadManifest,
+  planWrites,
+  type PlanItem,
+} from '../core/writer.js';
+import { WondevError } from '../util/errors.js';
+import { info, step, style, success, warn } from '../util/log.js';
+import { loadContext, selectTarget, type ProjectContext } from './context.js';
+
+export interface BuildOptions {
+  force?: boolean;
+  dryRun?: boolean;
+  target?: string | undefined;
+  quiet?: boolean;
+}
+
+export async function runBuild(root: string, options: BuildOptions = {}): Promise<void> {
+  const ctx = await loadContext(root);
+  reportIssues(ctx);
+
+  const targets = options.target ? selectTarget(ctx, options.target) : ctx.targets;
+  const { files, owners } = renderAll(ctx.project, targets);
+  const manifest = await loadManifest(root);
+  const plan = await planWrites(root, files, owners, manifest);
+
+  const conflicts = conflictsIn(plan);
+  if (conflicts.length > 0 && !options.force) {
+    throw describeConflicts(conflicts);
+  }
+
+  if (options.dryRun) {
+    printPlan(plan, true);
+    return;
+  }
+
+  const { written, removed } = await applyPlan(root, plan, manifest);
+
+  if (!options.quiet) {
+    printPlan(plan, false);
+    for (const file of removed) {
+      step(`${style.dim(file.outcome === 'deleted' ? 'deleted ' : 'stripped')}  ${file.path}`);
+    }
+    const summary = [
+      `${written.length} file(s) written`,
+      removed.length > 0 ? `${removed.length} removed` : null,
+      `${targets.length} target(s)`,
+    ]
+      .filter(Boolean)
+      .join(', ');
+    success(summary);
+  }
+}
+
+function reportIssues(ctx: ProjectContext): void {
+  for (const issue of ctx.issues) {
+    if (issue.level === 'warning') warn(`${issue.file}: ${issue.message}`);
+  }
+  if (hasErrors(ctx.issues)) {
+    const lines = ctx.issues
+      .filter((i) => i.level === 'error')
+      .map((i) => `  ${i.file}: ${i.message}`);
+    throw new WondevError(
+      `Cannot build, ${lines.length} problem(s) in .wondev/:\n${lines.join('\n')}`,
+      'Run `wondev check` for the full report.',
+    );
+  }
+}
+
+function printPlan(plan: PlanItem[], dryRun: boolean): void {
+  const verbs: Record<PlanItem['action'], string> = {
+    create: 'create',
+    update: 'update',
+    adopt: 'adopt ',
+    unchanged: 'same  ',
+  };
+  for (const item of plan) {
+    if (item.action === 'unchanged' && !dryRun) continue;
+    const conflict = item.conflict ? style.yellow(` (forced: ${item.conflict})`) : '';
+    step(`${style.dim(verbs[item.action])}  ${item.path}${conflict}`);
+  }
+  if (dryRun) info(style.dim('\nDry run: nothing was written.'));
+}

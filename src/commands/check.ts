@@ -1,0 +1,62 @@
+import { renderAll } from '../core/render/index.js';
+import { loadManifest, planWrites } from '../core/writer.js';
+import { WondevError } from '../util/errors.js';
+import { error, info, style, success, warn } from '../util/log.js';
+import { loadContext } from './context.js';
+
+/**
+ * The CI entry point. Reports every problem in one pass and exits non-zero if any of them
+ * would make the generated files wrong or out of date.
+ */
+export async function runCheck(root: string): Promise<void> {
+  const ctx = await loadContext(root);
+
+  let errors = 0;
+  let warnings = 0;
+
+  for (const issue of ctx.issues) {
+    if (issue.level === 'error') {
+      errors += 1;
+      error(`${issue.file}: ${issue.message}`);
+    } else {
+      warnings += 1;
+      warn(`${issue.file}: ${issue.message}`);
+    }
+  }
+
+  if (errors > 0) {
+    throw new WondevError(`${errors} error(s) in .wondev/.`);
+  }
+
+  const { files, owners } = renderAll(ctx.project, ctx.targets);
+  const manifest = await loadManifest(root);
+  const plan = await planWrites(root, files, owners, manifest);
+
+  const conflicts = plan.filter((p) => p.conflict !== undefined);
+  for (const c of conflicts) {
+    error(
+      c.conflict === 'untracked'
+        ? `${c.path}: exists but was not written by wondev`
+        : `${c.path}: edited by hand since wondev wrote it`,
+    );
+  }
+
+  const drifted = plan.filter((p) => p.conflict === undefined && p.action !== 'unchanged');
+  for (const d of drifted) {
+    error(`${d.path}: out of date (would ${d.action === 'create' ? 'be created' : 'change'})`);
+  }
+
+  const total = conflicts.length + drifted.length;
+  if (total > 0) {
+    throw new WondevError(
+      `${total} generated file(s) do not match .wondev/.`,
+      conflicts.length > 0
+        ? 'Run `wondev build --force` to overwrite, or move the hand edits into .wondev/ first.'
+        : 'Run `wondev build` to regenerate them.',
+    );
+  }
+
+  const counts = `${ctx.project.memory.length} memory, ${ctx.project.skills.length} skills, ${ctx.project.commands.length} commands`;
+  success(`up to date — ${counts} across ${ctx.targets.length} target(s)`);
+  if (warnings > 0) info(style.dim(`${warnings} warning(s)`));
+}

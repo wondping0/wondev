@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: ${{ matrix.os }} / node ${{ matrix.node }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node: [20, 22]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm test
+
+  package:
+    name: package smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+
+      # Install the real tarball into a scratch project and drive the published bin, so a
+      # missing `templates/` or a bad `files` list fails here rather than after publishing.
+      - name: Pack and run from the tarball
+        run: |
+          set -euo pipefail
+          TARBALL="$(npm pack --silent)"
+          mkdir -p /tmp/smoke && cd /tmp/smoke
+          npm init -y >/dev/null
+          npm install "$GITHUB_WORKSPACE/$TARBALL" >/dev/null
+          npx wondev init --targets claude,agents,cursor
+          npx wondev check
+          test -f CLAUDE.md
+          test -f AGENTS.md
+          test -f .cursor/rules/skill-debugging.mdc
+          npx wondev clean
+          test ! -f CLAUDE.md

@@ -1,0 +1,194 @@
+import path from 'node:path';
+import { parse as parseYaml } from 'yaml';
+import type {
+  NamedTarget,
+  RuleDirFrontmatterMap,
+  RuleDirTarget,
+  Target,
+  WriteMode,
+} from './model.js';
+import { BUILTIN_TARGETS, DEFAULT_TARGETS, knownTargetNames, resolveAlias } from './registry.js';
+import { WondevError } from '../util/errors.js';
+import { readFileIfExists } from '../util/fs.js';
+import { isInsideRoot } from '../util/paths.js';
+
+export const WONDEV_DIR = '.wondev';
+export const CONFIG_FILE = 'wondev.yaml';
+
+export interface WondevConfig {
+  name: string;
+  targets: string[];
+  customTargets: Record<string, Target>;
+}
+
+export function wondevDir(root: string): string {
+  return path.join(root, WONDEV_DIR);
+}
+
+export function configPath(root: string): string {
+  return path.join(wondevDir(root), CONFIG_FILE);
+}
+
+export async function loadConfig(root: string): Promise<WondevConfig> {
+  const file = configPath(root);
+  const raw = await readFileIfExists(file);
+  if (raw === null) {
+    throw new WondevError(
+      `No ${WONDEV_DIR}/${CONFIG_FILE} found in ${root}`,
+      'Run `wondev init` to create one.',
+    );
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = parseYaml(raw);
+  } catch (err) {
+    throw new WondevError(
+      `${WONDEV_DIR}/${CONFIG_FILE}: invalid YAML - ${(err as Error).message}`,
+    );
+  }
+  if (parsed === null || parsed === undefined) parsed = {};
+  if (typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new WondevError(`${WONDEV_DIR}/${CONFIG_FILE}: expected a YAML mapping.`);
+  }
+
+  const obj = parsed as Record<string, unknown>;
+  const name = typeof obj['name'] === 'string' && obj['name'].trim() !== ''
+    ? obj['name'].trim()
+    : path.basename(root);
+
+  const targets = readTargetList(obj['targets']);
+  const customTargets = readCustomTargets(obj['customTargets']);
+
+  for (const t of targets) {
+    const resolved = resolveAlias(t);
+    if (!customTargets[t] && !customTargets[resolved] && !BUILTIN_TARGETS[resolved]) {
+      throw new WondevError(
+        `${WONDEV_DIR}/${CONFIG_FILE}: unknown target "${t}".`,
+        `Known targets: ${knownTargetNames().join(', ')}. Add anything else under customTargets.`,
+      );
+    }
+  }
+
+  return { name, targets, customTargets };
+}
+
+function readTargetList(value: unknown): string[] {
+  if (value === undefined || value === null) return [...DEFAULT_TARGETS];
+  if (!Array.isArray(value)) {
+    throw new WondevError(`${WONDEV_DIR}/${CONFIG_FILE}: "targets" must be a list.`);
+  }
+  const out = value.filter((v): v is string => typeof v === 'string' && v.trim() !== '');
+  if (out.length === 0) {
+    throw new WondevError(`${WONDEV_DIR}/${CONFIG_FILE}: "targets" is empty.`);
+  }
+  return out.map((v) => v.trim());
+}
+
+function readCustomTargets(value: unknown): Record<string, Target> {
+  if (value === undefined || value === null) return {};
+  if (typeof value !== 'object' || Array.isArray(value)) {
+    throw new WondevError(`${WONDEV_DIR}/${CONFIG_FILE}: "customTargets" must be a mapping.`);
+  }
+  const out: Record<string, Target> = {};
+  for (const [name, raw] of Object.entries(value as Record<string, unknown>)) {
+    out[name] = validateTarget(name, raw);
+  }
+  return out;
+}
+
+/**
+ * Target definitions come from user config, so every path is checked to stay inside the
+ * project root before it can reach the writer.
+ */
+export function validateTarget(name: string, raw: unknown): Target {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    throw new WondevError(`customTargets.${name}: must be a mapping.`);
+  }
+  const obj = raw as Record<string, unknown>;
+  const engine = obj['engine'];
+
+  const requirePath = (key: string): string => {
+    const v = obj[key];
+    if (typeof v !== 'string' || v.trim() === '') {
+      throw new WondevError(`customTargets.${name}: "${key}" is required and must be a string.`);
+    }
+    const p = v.trim();
+    if (!isInsideRoot(p)) {
+      throw new WondevError(
+        `customTargets.${name}: "${key}" must be a relative path inside the project (got "${p}").`,
+      );
+    }
+    return p;
+  };
+
+  switch (engine) {
+    case 'single-file': {
+      const mode = obj['mode'];
+      if (mode !== undefined && mode !== 'region' && mode !== 'whole') {
+        throw new WondevError(`customTargets.${name}: "mode" must be "region" or "whole".`);
+      }
+      return {
+        engine: 'single-file',
+        path: requirePath('path'),
+        mode: (mode as WriteMode | undefined) ?? 'region',
+      };
+    }
+    case 'rule-dir': {
+      const ext = typeof obj['ext'] === 'string' && obj['ext'].trim() !== ''
+        ? obj['ext'].trim()
+        : '.md';
+      if (!ext.startsWith('.')) {
+        throw new WondevError(`customTargets.${name}: "ext" must start with a dot (got "${ext}").`);
+      }
+      const target: RuleDirTarget = { engine: 'rule-dir', path: requirePath('path'), ext };
+      const fm = obj['frontmatter'];
+      if (fm !== undefined) {
+        if (typeof fm !== 'object' || fm === null || Array.isArray(fm)) {
+          throw new WondevError(`customTargets.${name}: "frontmatter" must be a mapping.`);
+        }
+        target.frontmatter = fm as RuleDirFrontmatterMap;
+      }
+      return target;
+    }
+    case 'claude':
+      return {
+        engine: 'claude',
+        memory: requirePath('memory'),
+        skills: requirePath('skills'),
+        commands: requirePath('commands'),
+      };
+    default:
+      throw new WondevError(
+        `customTargets.${name}: unknown engine "${String(engine)}".`,
+        'Valid engines: single-file, rule-dir, claude.',
+      );
+  }
+}
+
+/**
+ * Resolve configured target names to definitions, dropping duplicates that arise when a
+ * user lists both an alias and its canonical name (e.g. `codex` and `agents`).
+ */
+export function resolveTargets(config: WondevConfig): NamedTarget[] {
+  const seen = new Set<string>();
+  const out: NamedTarget[] = [];
+  for (const requested of config.targets) {
+    const custom = config.customTargets[requested];
+    if (custom) {
+      if (seen.has(requested)) continue;
+      seen.add(requested);
+      out.push({ name: requested, target: custom });
+      continue;
+    }
+    const canonical = resolveAlias(requested);
+    if (seen.has(canonical)) continue;
+    const builtin = BUILTIN_TARGETS[canonical];
+    if (!builtin) {
+      throw new WondevError(`Unknown target "${requested}".`);
+    }
+    seen.add(canonical);
+    out.push({ name: canonical, target: builtin.target });
+  }
+  return out;
+}
