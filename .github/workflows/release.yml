@@ -16,11 +16,17 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # Trusted publishing (OIDC) needs Node >= 22.14 and npm >= 11.5.1. Pinning them here
+      # means that once the package exists and a trusted publisher is configured on
+      # npmjs.com, the NPM_TOKEN secret below can simply be deleted.
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: "22.14"
           registry-url: https://registry.npmjs.org
           cache: npm
+
+      - name: Use an npm new enough for trusted publishing
+        run: npm install -g npm@latest
 
       - run: npm ci
 
@@ -39,6 +45,8 @@ jobs:
             exit 1
           fi
 
+      # NODE_AUTH_TOKEN is only consulted when no trusted publisher is configured. Once one
+      # is, OIDC supplies a short-lived credential and the secret becomes dead weight.
       - name: Publish
         run: npm publish --provenance --access public
         env:

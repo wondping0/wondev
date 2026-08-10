@@ -6,12 +6,28 @@
       CI green across ubuntu/windows/macos on Node 20 and 22.
 - [x] **Repository fields set in `package.json`** — `repository`, `bugs`, `homepage`, and
       `author`. Provenance attestation requires `repository` to match the workflow's repo.
-- [ ] **`NPM_TOKEN` secret.** Create an npm **Granular Access Token** with write access to
-      the `wondev` package (npmjs.com → Access Tokens → Generate → Granular), then add it at
-      <https://github.com/wondping0/wondev/settings/secrets/actions> as `NPM_TOKEN`.
+- [ ] **npm account with 2FA.** Since 2026 npm refuses `npm publish` unless the account has
+      two-factor authentication, or the request uses a granular token explicitly marked to
+      bypass it. Enable 2FA at <https://www.npmjs.com/settings/~/profile>.
 
-      Until this exists, the tagged release workflow will fail at the publish step. Nothing
-      else depends on it.
+      A token that merely says "Publish" is **not** enough — that type does not bypass 2FA
+      and returns `E403` with a message naming this requirement.
+
+- [ ] **`NPM_TOKEN` secret**, for tagged releases. Create a **Granular Access Token** with
+      read/write on `wondev` and 2FA bypass enabled, then add it at
+      <https://github.com/wondping0/wondev/settings/secrets/actions>.
+
+      Bypass tokens keep working for publishing until January 2027. After that, and
+      preferably sooner, switch to trusted publishing below.
+
+- [ ] **Trusted publishing (after the first release).** Once `wondev` exists on npm, add a
+      trusted publisher under the package settings pointing at `wondping0/wondev` and
+      `release.yml`. OIDC then supplies a short-lived credential per run and `NPM_TOKEN` can
+      be deleted. The workflow already pins Node 22.14 and upgrades npm, which are its
+      minimum versions.
+
+      This cannot be used for a package's **first** publish, because the setting lives in
+      package settings and the package does not exist yet.
 
 > The npm name `wondev` was unclaimed as of 2026-08-10. Publishing the first version claims
 > it. npm only allows unpublishing within 72 hours, and the name stays reserved afterwards,
