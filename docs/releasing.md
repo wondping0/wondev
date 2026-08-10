@@ -2,25 +2,20 @@
 
 ## One-time setup
 
-1. **Create the GitHub repository** and add the remote:
+- [x] **GitHub repository created** — <https://github.com/wondping0/wondev>, `main` pushed,
+      CI green across ubuntu/windows/macos on Node 20 and 22.
+- [x] **Repository fields set in `package.json`** — `repository`, `bugs`, `homepage`, and
+      `author`. Provenance attestation requires `repository` to match the workflow's repo.
+- [ ] **`NPM_TOKEN` secret.** Create an npm **Granular Access Token** with write access to
+      the `wondev` package (npmjs.com → Access Tokens → Generate → Granular), then add it at
+      <https://github.com/wondping0/wondev/settings/secrets/actions> as `NPM_TOKEN`.
 
-   ```bash
-   git remote add origin https://github.com/<you>/wondev.git
-   git push -u origin main
-   ```
+      Until this exists, the tagged release workflow will fail at the publish step. Nothing
+      else depends on it.
 
-2. **Add the repository fields to `package.json`.** npm shows a bare page without them, and
-   provenance attestation requires the repository to match:
-
-   ```json
-   "repository": { "type": "git", "url": "git+https://github.com/<you>/wondev.git" },
-   "bugs": { "url": "https://github.com/<you>/wondev/issues" },
-   "homepage": "https://github.com/<you>/wondev#readme",
-   "author": "<your name>"
-   ```
-
-3. **Create an npm automation token** (npmjs.com → Access Tokens → Granular, with publish
-   rights on `wondev`) and add it to the GitHub repository as the secret `NPM_TOKEN`.
+> The npm name `wondev` was unclaimed as of 2026-08-10. Publishing the first version claims
+> it. npm only allows unpublishing within 72 hours, and the name stays reserved afterwards,
+> so treat the first publish as permanent.
 
 ## Every release
 
@@ -53,14 +48,18 @@
 
 ## Publishing by hand
 
-If the workflow is unavailable:
+For the very first release, or whenever the workflow is unavailable:
 
 ```bash
-npm run verify
+npm login
 npm publish
 ```
 
-`prepublishOnly` runs `verify` again, so a broken build cannot be published even by mistake.
+`prepublishOnly` runs the full `verify` pipeline — typecheck, build, 191 tests — so a broken
+build cannot be published even by mistake. There is no need to run `verify` yourself first.
+
+A hand publish gets no provenance attestation; only the tagged workflow does. That is fine
+for 0.1.0, and worth setting up before the next release.
 
 ## After publishing
 
