@@ -33,10 +33,23 @@
       <https://www.npmjs.com/settings/~/tokens>. Bypass tokens keep working until January
       2027, but that is a deadline, not a reason to keep one.
 
-- [ ] **`NPM_TOKEN` secret** — only as a fallback if trusted publishing cannot be configured.
-      A Granular Access Token with read/write on `wondev`, added at
-      <https://github.com/wondping0/wondev/settings/secrets/actions>. `release.yml` reads it
-      through `NODE_AUTH_TOKEN`, which npm consults only when no trusted publisher is set.
+### The `NODE_AUTH_TOKEN` trap
+
+`release.yml` deliberately sets **no** `NODE_AUTH_TOKEN`, and adding one back disables
+trusted publishing. `setup-node`'s `registry-url` writes `_authToken=${NODE_AUTH_TOKEN}`
+into `.npmrc`. A missing secret expands to the *empty string*, not to nothing — npm reads
+that as "auth is already configured", skips the OIDC exchange, and fails with `ENEEDAUTH`.
+The failure names authentication, so the natural next move is to go add a token, which is
+the wrong direction.
+
+For the same reason `setup-node` must stay at v7 or newer; earlier versions exported a dummy
+token with the same effect.
+
+If trusted publishing genuinely cannot be used, the fallback is a Granular Access Token
+stored as `NPM_TOKEN` at
+<https://github.com/wondping0/wondev/settings/secrets/actions>, **plus** restoring
+`env: NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}` on the publish step. It is one or the
+other, never both.
 
 > The npm name `wondev` was claimed on 2026-08-10 and is permanent. npm only allows
 > unpublishing within 72 hours, and the name stays reserved afterwards.

@@ -16,9 +16,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # Trusted publishing (OIDC) needs Node >= 22.14 and npm >= 11.5.1. Pinning them here
-      # means that once the package exists and a trusted publisher is configured on
-      # npmjs.com, the NPM_TOKEN secret below can simply be deleted.
+      # Trusted publishing (OIDC) needs Node >= 22.14 and npm >= 11.5.1; both are pinned
+      # below. setup-node must be v7 or newer -- earlier versions exported a dummy
+      # NODE_AUTH_TOKEN that defeats OIDC the same way an empty secret does.
       - uses: actions/setup-node@v7
         with:
           node-version: "22.14"
@@ -45,9 +45,10 @@ jobs:
             exit 1
           fi
 
-      # NODE_AUTH_TOKEN is only consulted when no trusted publisher is configured. Once one
-      # is, OIDC supplies a short-lived credential and the secret becomes dead weight.
+      # No NODE_AUTH_TOKEN here, deliberately. setup-node's registry-url writes
+      # _authToken=${NODE_AUTH_TOKEN} into .npmrc; if that variable is set but empty -- which
+      # is exactly what a missing NPM_TOKEN secret expands to -- npm reads it as "auth is
+      # already configured", never starts the OIDC exchange, and fails with ENEEDAUTH.
+      # Leaving the variable unset is what makes trusted publishing engage.
       - name: Publish
         run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

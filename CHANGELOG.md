@@ -21,6 +21,10 @@ a patch, because it makes `wondev check` fail in every project that upgrades.
 
 Generated output is byte-identical to 0.1.0, so upgrading requires no rebuild.
 
+This is the first release published from CI through npm trusted publishing, so unlike 0.1.0
+the tarball carries a signed provenance attestation linking it to the commit and workflow run
+that built it. No long-lived npm token exists anywhere in the pipeline.
+
 ## [0.1.0] - 2026-08-10
 
 First release.
