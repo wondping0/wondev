@@ -63,3 +63,56 @@ jobs:
           test -f .cursor/rules/skill-debugging.mdc
           npx wondev clean
           test ! -f CLAUDE.md
+
+  upgrade-path:
+    name: upgrade from the previous release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+
+      # Prove that a project created by the *published* wondev still works after upgrading
+      # to this build. Nothing else catches a change that silently strands existing users.
+      # Skips cleanly before the first publish, when there is no previous release to test.
+      - name: Upgrade an existing project to this build
+        run: |
+          set -euo pipefail
+
+          if ! npm view wondev version >/dev/null 2>&1; then
+            echo "wondev is not published yet - no upgrade path to verify."
+            exit 0
+          fi
+          PREVIOUS="$(npm view wondev version)"
+          echo "Previous release: $PREVIOUS"
+
+          mkdir -p /tmp/upgrade && cd /tmp/upgrade
+          npm init -y >/dev/null
+
+          # 1. Create a project with the published version.
+          npm install "wondev@$PREVIOUS" >/dev/null
+          npx wondev init --targets claude,agents,cursor
+          npx wondev check
+
+          # 2. Edit a starter file, as a real user would.
+          printf '\nA line the user added.\n' >> .wondev/skills/debugging/SKILL.md
+
+          # 3. Install this build over the top.
+          TARBALL="$(cd "$GITHUB_WORKSPACE" && npm pack --silent)"
+          npm install "$GITHUB_WORKSPACE/$TARBALL" >/dev/null
+
+          # 4. The documented upgrade sequence must leave a working project.
+          npx wondev migrate
+          npx wondev upgrade
+          npx wondev build
+          npx wondev check
+          npx wondev doctor
+
+          # 5. The user's edit must have survived.
+          grep -q 'A line the user added.' .wondev/skills/debugging/SKILL.md
+          echo "Upgrade path verified: $PREVIOUS -> this build"

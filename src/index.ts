@@ -44,7 +44,17 @@ export { runCheck } from './commands/check.js';
 export { runClean } from './commands/clean.js';
 export { runAdd } from './commands/add.js';
 export { runMigrate } from './commands/migrate.js';
+export { runUpgrade } from './commands/upgrade.js';
+export { runDoctor } from './commands/doctor.js';
 export { runWatch } from './commands/watch.js';
+
+export {
+  loadTemplateManifest,
+  recordTemplates,
+  templatesDir,
+  type TemplateManifest,
+} from './core/templates.js';
+export { compareVersions, isNewerThan } from './util/semver.js';
 
 export { SOURCE_SCHEMA_VERSION, MANIFEST_SCHEMA_VERSION } from './core/schema.js';
 export {

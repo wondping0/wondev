@@ -72,6 +72,44 @@ describe('single-file engine', () => {
     expect(files[0]?.content).toContain('**When to use:** Use when investigating a failure');
   });
 
+  it('nests body headings under the section heading instead of beside it', () => {
+    const adr: Project = {
+      ...project,
+      memory: [
+        {
+          slug: 'decisions/0001-x',
+          title: 'Decision one',
+          always: false,
+          body: '## Context\n\nWhy.\n\n## Decision\n\nWhat.',
+          sourcePath: '.wondev/memory/decisions/0001-x.md',
+        },
+      ],
+    };
+    const content = renderTarget(adr, named('agents'))[0]?.content ?? '';
+    expect(content).toContain('## Decision one');
+    expect(content).toContain('### Context');
+    expect(content).toContain('### Decision');
+    expect(content).not.toContain('\n## Context');
+  });
+
+  it('leaves headings inside fenced code blocks alone', () => {
+    const withCode: Project = {
+      ...project,
+      memory: [
+        {
+          slug: 'a',
+          title: 'A',
+          always: false,
+          body: '## Real heading\n\n```bash\n# not a heading, a shell comment\nls\n```',
+          sourcePath: '.wondev/memory/a.md',
+        },
+      ],
+    };
+    const content = renderTarget(withCode, named('agents'))[0]?.content ?? '';
+    expect(content).toContain('### Real heading');
+    expect(content).toContain('# not a heading, a shell comment');
+  });
+
   it('does not repeat a heading the author already wrote in the body', () => {
     const withHeading: Project = {
       ...project,

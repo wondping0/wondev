@@ -1,11 +1,23 @@
 import type { Target } from './model.js';
+import { compareVersions } from '../util/semver.js';
 
 export interface RegistryEntry {
   target: Target;
   /** Human-readable label used in CLI output. */
   label: string;
+  /** wondev version this target first shipped in, for `wondev targets --new`. */
+  addedIn: string;
   /** Other tools that consume this same output file. Purely informational. */
   readBy: string[];
+  /**
+   * Set when an agent moves or retires its config location. Nothing is removed without one
+   * MINOR release carrying this warning first.
+   */
+  deprecated?: {
+    since: string;
+    replacedBy?: string;
+    note?: string;
+  };
 }
 
 /**
@@ -19,6 +31,7 @@ export interface RegistryEntry {
 export const BUILTIN_TARGETS: Record<string, RegistryEntry> = {
   claude: {
     label: 'Claude Code',
+    addedIn: '0.1.0',
     readBy: ['Claude Code'],
     target: {
       engine: 'claude',
@@ -30,6 +43,7 @@ export const BUILTIN_TARGETS: Record<string, RegistryEntry> = {
 
   agents: {
     label: 'AGENTS.md',
+    addedIn: '0.1.0',
     readBy: [
       'OpenAI Codex',
       'Cursor',
@@ -53,6 +67,7 @@ export const BUILTIN_TARGETS: Record<string, RegistryEntry> = {
 
   copilot: {
     label: 'GitHub Copilot',
+    addedIn: '0.1.0',
     readBy: ['GitHub Copilot'],
     target: {
       engine: 'single-file',
@@ -63,24 +78,28 @@ export const BUILTIN_TARGETS: Record<string, RegistryEntry> = {
 
   gemini: {
     label: 'Gemini CLI',
+    addedIn: '0.1.0',
     readBy: ['Gemini CLI'],
     target: { engine: 'single-file', path: 'GEMINI.md', mode: 'region' },
   },
 
   aider: {
     label: 'Aider',
+    addedIn: '0.1.0',
     readBy: ['Aider'],
     target: { engine: 'single-file', path: 'CONVENTIONS.md', mode: 'region' },
   },
 
   junie: {
     label: 'JetBrains Junie',
+    addedIn: '0.1.0',
     readBy: ['JetBrains Junie'],
     target: { engine: 'single-file', path: '.junie/guidelines.md', mode: 'region' },
   },
 
   cursor: {
     label: 'Cursor',
+    addedIn: '0.1.0',
     readBy: ['Cursor'],
     target: {
       engine: 'rule-dir',
@@ -97,24 +116,28 @@ export const BUILTIN_TARGETS: Record<string, RegistryEntry> = {
 
   windsurf: {
     label: 'Windsurf',
+    addedIn: '0.1.0',
     readBy: ['Windsurf'],
     target: { engine: 'rule-dir', path: '.windsurf/rules', ext: '.md' },
   },
 
   cline: {
     label: 'Cline',
+    addedIn: '0.1.0',
     readBy: ['Cline'],
     target: { engine: 'rule-dir', path: '.clinerules', ext: '.md' },
   },
 
   roo: {
     label: 'Roo Code',
+    addedIn: '0.1.0',
     readBy: ['Roo Code'],
     target: { engine: 'rule-dir', path: '.roo/rules', ext: '.md' },
   },
 
   continue: {
     label: 'Continue',
+    addedIn: '0.1.0',
     readBy: ['Continue'],
     // Continue reads optional YAML frontmatter on rule files; without this map the glob
     // scoping authored in .wondev/ would be silently dropped for this target.
@@ -132,6 +155,7 @@ export const BUILTIN_TARGETS: Record<string, RegistryEntry> = {
 
   kiro: {
     label: 'Kiro',
+    addedIn: '0.1.0',
     readBy: ['Kiro'],
     target: { engine: 'rule-dir', path: '.kiro/steering', ext: '.md' },
   },
@@ -171,4 +195,33 @@ export function knownTargetNames(): string[] {
 
 export function lookupBuiltin(name: string): Target | undefined {
   return BUILTIN_TARGETS[resolveAlias(name)]?.target;
+}
+
+/**
+ * The warning line for a deprecated target, or null when it is fine.
+ *
+ * Takes the registry as a parameter so this can be tested with a synthetic deprecated entry.
+ * No built-in target is deprecated yet, and a branch first exercised on the day it matters
+ * is a branch nobody has checked.
+ */
+export function deprecationNotice(
+  name: string,
+  registry: Record<string, RegistryEntry> = BUILTIN_TARGETS,
+): string | null {
+  const deprecated = registry[resolveAlias(name)]?.deprecated;
+  if (!deprecated) return null;
+
+  const replacement = deprecated.replacedBy ? ` Use "${deprecated.replacedBy}" instead.` : '';
+  const note = deprecated.note ? ` ${deprecated.note}` : '';
+  return `target "${name}" is deprecated since ${deprecated.since}.${replacement}${note}`;
+}
+
+/** Targets added after `since`, for telling a user what became available. */
+export function targetsAddedSince(
+  since: string,
+  registry: Record<string, RegistryEntry> = BUILTIN_TARGETS,
+): string[] {
+  return Object.keys(registry)
+    .filter((name) => compareVersions(registry[name]?.addedIn ?? '0.0.0', since) > 0)
+    .sort();
 }

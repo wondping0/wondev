@@ -5,19 +5,82 @@ import type { Command, MemoryDoc, Project, Skill } from '../model.js';
  * it returns the same string, which is what makes golden-file testing meaningful.
  */
 
+/** Compare heading text loosely, so `# Example Skill` matches the name `example-skill`. */
+function headingKey(text: string): string {
+  return text.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
 /**
- * Authors naturally start a memory document with `# Title`, which would collide with the
- * heading this renderer emits. Dropping the leading H1 keeps one heading per section.
+ * Drop a leading heading only when it repeats the title this renderer already emits.
+ *
+ * Matching on the text rather than just position matters: a decision record whose body
+ * opens with `## Context` would otherwise lose its first section entirely.
  */
-function stripLeadingHeading(body: string): string {
-  return body.replace(/^#{1,2}\s+\S[^\n]*\n+/, '');
+function stripDuplicateTitle(body: string, title: string): string {
+  const match = /^(#{1,6})\s+(\S[^\n]*)\n+/.exec(body);
+  if (!match?.[0] || !match[2]) return body;
+  if (headingKey(match[2]) !== headingKey(title)) return body;
+  return body.slice(match[0].length);
+}
+
+const FENCE = /^\s*(?:```|~~~)/;
+const HEADING = /^(#{1,6})(\s+\S.*)$/;
+
+/**
+ * Re-level a document's headings so its shallowest sits just below the section heading.
+ *
+ * Every renderer wraps a body under a `## Something` heading. A decision record whose body
+ * starts at `## Context` would then render as a sibling of its own title rather than a
+ * child, silently flattening the structure an agent uses to navigate the document.
+ *
+ * Headings inside fenced code blocks are left alone; a `# comment` in a shell example is
+ * not a heading.
+ */
+function normalizeHeadings(body: string, shallowest = 3): string {
+  const lines = body.split('\n');
+
+  let inFence = false;
+  let min = 7;
+  for (const line of lines) {
+    if (FENCE.test(line)) {
+      inFence = !inFence;
+      continue;
+    }
+    if (inFence) continue;
+    const match = HEADING.exec(line);
+    if (match?.[1]) min = Math.min(min, match[1].length);
+  }
+  if (min === 7) return body;
+
+  const shift = shallowest - min;
+  if (shift === 0) return body;
+
+  inFence = false;
+  return lines
+    .map((line) => {
+      if (FENCE.test(line)) {
+        inFence = !inFence;
+        return line;
+      }
+      if (inFence) return line;
+      const match = HEADING.exec(line);
+      if (!match?.[1] || !match[2]) return line;
+      const level = Math.min(6, Math.max(1, match[1].length + shift));
+      return `${'#'.repeat(level)}${match[2]}`;
+    })
+    .join('\n');
+}
+
+/** Strip a redundant title, then re-level what remains. */
+function sectionBody(body: string, title: string): string {
+  return normalizeHeadings(stripDuplicateTitle(body, title));
 }
 
 export function memorySection(doc: MemoryDoc): string {
   const parts = [`## ${doc.title}`];
   if (doc.description) parts.push(`_${doc.description}_`);
   if (doc.globs?.length) parts.push(`Applies to: ${doc.globs.map((g) => `\`${g}\``).join(', ')}`);
-  parts.push(stripLeadingHeading(doc.body));
+  parts.push(sectionBody(doc.body, doc.title));
   return parts.filter(Boolean).join('\n\n').trim();
 }
 
@@ -26,12 +89,16 @@ export function skillSection(skill: Skill): string {
   if (skill.globs?.length) {
     parts.push(`**Applies to:** ${skill.globs.map((g) => `\`${g}\``).join(', ')}`);
   }
-  parts.push(skill.body);
+  parts.push(sectionBody(skill.body, skill.name));
   return parts.filter(Boolean).join('\n\n').trim();
 }
 
 export function commandSection(command: Command): string {
-  return [`## Command: ${command.name}`, `**Purpose:** ${command.description}`, command.body]
+  return [
+    `## Command: ${command.name}`,
+    `**Purpose:** ${command.description}`,
+    sectionBody(command.body, command.name),
+  ]
     .filter(Boolean)
     .join('\n\n')
     .trim();

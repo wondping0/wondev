@@ -189,18 +189,34 @@ Mechanisms that are not tested against real old projects do not work.
 
 ---
 
-## Recommended order
+## Status
 
-| Order | Plan | Why now |
-| ----- | ---- | ------- |
-| 1 | **C** output-version awareness | Prevents a confusing mass CI failure the first time a renderer changes. Small. |
-| 2 | **A** release contract | Cheap, and defines what every later change is allowed to do. |
-| 3 | **B** version stamps | **Impossible to retrofit.** Stamp now; write migrations when needed. |
-| 4 | **G** compatibility tests | Makes 1–3 real rather than aspirational. |
-| 5 | **D** `wondev upgrade` | Biggest build, biggest payoff. Needs B's provenance data first. |
-| 6 | **E** deprecation | Wait for the first agent to actually move a path. |
-| 7 | **F** doctor | Optional. |
+All seven are implemented as of 0.1.0.
 
-Items 1–3 are roughly a day and should land **before the first publish**, because all three
-are about being able to identify a project after the fact. Everything from 4 down can ship
-in later releases without stranding anyone.
+| Plan | Status | Where |
+| ---- | ------ | ----- |
+| **A** release contract | done | `docs/versioning.md`, `docs/releasing.md`, `CHANGELOG.md`, `.github/workflows/release.yml` |
+| **B** version stamps + migrations | done | `src/core/schema.ts`, `src/core/migrate/`, `wondev migrate` |
+| **C** output-version awareness | done | `src/commands/check.ts` |
+| **D** starter pack upgrades | done | `src/core/templates.ts`, `wondev upgrade` |
+| **E** registry deprecation | done | `deprecationNotice`, `targetsAddedSince`, `wondev targets --new` |
+| **F** update notification | done | `wondev doctor --online`, opt-in only |
+| **G** compatibility testing | done | `test/fixtures/schema-1/`, `test/fixtures/golden/`, `upgrade-path` CI job |
+
+`MIGRATIONS` is intentionally empty: schema 1 is the only shape that exists. The engine
+shipped early because the version stamp it reads cannot be added retroactively.
+
+Two branches are exercised through pure functions — `assertSchemaCurrent` and
+`deprecationNotice` — because neither has a real case yet, and a branch first run on the day
+it matters is a branch nobody has checked.
+
+## What each plan cost
+
+Roughly, in the order they were built:
+
+- **C** was the cheapest and the highest value: one branch in `check`, and an upgrade stops
+  looking like the user's fault.
+- **B** is small but had to be first in wall-clock terms. Everything else keys off the stamp.
+- **D** was the largest, and the design decision that mattered was refusing to merge.
+- **G** paid for itself immediately: writing the golden files surfaced a real bug where
+  decision-record subsections rendered as siblings of their own title.

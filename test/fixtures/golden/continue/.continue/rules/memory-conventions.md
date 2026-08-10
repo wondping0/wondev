@@ -1,0 +1,9 @@
+---
+description: Conventions
+---
+
+## Conventions
+
+Tests live beside the code they cover, named `*.test.ts`.
+
+Errors that a caller can reasonably handle are returned; everything else throws.

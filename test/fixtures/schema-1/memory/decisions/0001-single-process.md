@@ -1,0 +1,17 @@
+---
+title: 0001 — Stay a single process
+---
+
+**Status:** accepted
+
+## Context
+
+Splitting into services was proposed to allow independent scaling.
+
+## Decision
+
+Stay a single process until a measured bottleneck justifies otherwise.
+
+## Consequences
+
+Deployment stays trivial. Scaling is vertical only, which is acceptable at current volume.

@@ -1,10 +1,10 @@
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import fs from 'node:fs/promises';
 import { stringify as stringifyYaml } from 'yaml';
 import { CONFIG_FILE, WONDEV_DIR, wondevDir } from '../core/config.js';
 import { BUILTIN_TARGETS, DEFAULT_TARGETS, knownTargetNames, resolveAlias } from '../core/registry.js';
 import { SOURCE_SCHEMA_VERSION } from '../core/schema.js';
+import { recordTemplates, templatesDir } from '../core/templates.js';
 import { WondevError } from '../util/errors.js';
 import { wondevVersion } from '../util/version.js';
 import { copyDir, pathExists, writeFileAtomic } from '../util/fs.js';
@@ -16,15 +16,6 @@ export interface InitOptions {
   all?: boolean;
   force?: boolean;
   skipBuild?: boolean;
-}
-
-/**
- * Templates live beside `dist/` in the published tarball and beside `src/` in the repo.
- * Both resolve to `<package root>/templates` from two levels up, so the same code path
- * works when running from source under vitest and from the installed package.
- */
-function templatesDir(): string {
-  return path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'templates');
 }
 
 export async function runInit(root: string, options: InitOptions = {}): Promise<void> {
@@ -45,6 +36,10 @@ export async function runInit(root: string, options: InitOptions = {}): Promise<
 
   await copyDir(templates, base);
   await writeFileAtomic(path.join(base, CONFIG_FILE), renderConfig(path.basename(root), targets));
+
+  // Record what was shipped, so `wondev upgrade` can later tell an edited starter file from
+  // an untouched one. Written at init because it cannot be reconstructed afterwards.
+  await recordTemplates(root, templates, wondevVersion());
 
   success(`created ${style.cyan(`${WONDEV_DIR}/`)} with the starter pack`);
 

@@ -6,10 +6,13 @@ import { runAdd, parseKind } from './commands/add.js';
 import { runBuild } from './commands/build.js';
 import { runCheck } from './commands/check.js';
 import { runClean } from './commands/clean.js';
+import { runDoctor } from './commands/doctor.js';
 import { runInit } from './commands/init.js';
 import { runMigrate } from './commands/migrate.js';
+import { runUpgrade } from './commands/upgrade.js';
 import { runWatch } from './commands/watch.js';
-import { BUILTIN_TARGETS, TARGET_ALIASES } from './core/registry.js';
+import { loadConfig } from './core/config.js';
+import { BUILTIN_TARGETS, TARGET_ALIASES, targetsAddedSince } from './core/registry.js';
 import { isWondevError, WondevError } from './util/errors.js';
 import { readFileIfExists } from './util/fs.js';
 import { error, info, setColor, style } from './util/log.js';
@@ -28,6 +31,8 @@ ${style.bold('Commands')}
   check                    Validate sources and detect drift  (exit 1 on failure)
   clean                    Remove generated files listed in the manifest
   migrate                  Bring an older .wondev/ up to the current source schema
+  upgrade                  Update starter-pack files, preserving your edits
+  doctor                   Diagnose this project and report problems
   targets                  List known targets and what reads them
 
 ${style.bold('Options')}
@@ -36,7 +41,12 @@ ${style.bold('Options')}
   --all                    init: enable every known target
   --force                  init: overwrite .wondev/ · build: overwrite conflicting files
   --target <name>          build: build only one target
-  --dry-run                build, migrate: show what would change, write nothing
+  --dry-run                build, migrate, upgrade: show changes, write nothing
+  --only <path>            upgrade: limit to one starter file or directory
+  --restore                upgrade: re-add starter files you deleted
+  --no-new                 upgrade: skip templates that are new in this release
+  --new                    targets: only those added since you initialised
+  --online                 doctor: also ask npm whether a newer wondev exists
   --no-color               Disable coloured output
   -h, --help               Show this help
   -v, --version            Show version
@@ -59,9 +69,28 @@ async function readVersion(): Promise<string> {
   }
 }
 
-function listTargets(): void {
-  info(style.bold('Built-in targets'));
-  const names = Object.keys(BUILTIN_TARGETS).sort();
+async function listTargets(root: string, onlyNew: boolean): Promise<void> {
+  let since: string | undefined;
+  if (onlyNew) {
+    // Needs the stamp written at init; without it there is no baseline to compare against.
+    const config = await loadConfig(root);
+    since = config.wondevVersion;
+    if (!since) {
+      throw new WondevError(
+        'This project does not record which wondev version initialised it.',
+        'Run `wondev migrate` to stamp the current version, then compare against later releases.',
+      );
+    }
+  }
+
+  const names = since ? targetsAddedSince(since) : Object.keys(BUILTIN_TARGETS).sort();
+
+  if (names.length === 0) {
+    info(`No targets have been added since wondev ${since}.`);
+    return;
+  }
+
+  info(style.bold(since ? `Targets added since wondev ${since}` : 'Built-in targets'));
   const width = Math.max(...names.map((n) => n.length));
   for (const name of names) {
     const entry = BUILTIN_TARGETS[name];
@@ -70,11 +99,14 @@ function listTargets(): void {
       entry.target.engine === 'claude'
         ? entry.target.memory
         : entry.target.path;
-    info(`  ${style.cyan(name.padEnd(width))}  ${style.dim(output)}`);
+    const flag = entry.deprecated ? ` ${style.yellow('(deprecated)')}` : '';
+    info(`  ${style.cyan(name.padEnd(width))}  ${style.dim(output)}${flag}`);
     if (entry.readBy.length > 1) {
       info(`  ${' '.repeat(width)}  ${style.dim(`read by ${entry.readBy.join(', ')}`)}`);
     }
   }
+
+  if (since) return;
 
   const aliases = Object.entries(TARGET_ALIASES).sort(([a], [b]) => a.localeCompare(b));
   if (aliases.length > 0) {
@@ -102,6 +134,11 @@ async function main(argv: string[]): Promise<number> {
       'dry-run': { type: 'boolean' },
       'no-color': { type: 'boolean' },
       'skip-build': { type: 'boolean' },
+      only: { type: 'string' },
+      restore: { type: 'boolean' },
+      'no-new': { type: 'boolean' },
+      new: { type: 'boolean' },
+      online: { type: 'boolean' },
     },
   });
 
@@ -166,8 +203,21 @@ async function main(argv: string[]): Promise<number> {
       await runMigrate(root, { dryRun: values['dry-run'] === true });
       return 0;
 
+    case 'upgrade':
+      await runUpgrade(root, {
+        dryRun: values['dry-run'] === true,
+        only: values.only,
+        restore: values.restore === true,
+        noNew: values['no-new'] === true,
+      });
+      return 0;
+
+    case 'doctor':
+      await runDoctor(root, { online: values.online === true });
+      return 0;
+
     case 'targets':
-      listTargets();
+      await listTargets(root, values.new === true);
       return 0;
 
     case 'help':

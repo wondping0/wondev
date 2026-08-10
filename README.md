@@ -58,7 +58,9 @@ architecture, conventions, glossary, and decision records. Edit them; they are y
 | `wondev check` | Validate sources and detect drift — exits 1 on failure |
 | `wondev clean` | Remove generated files, per the manifest |
 | `wondev migrate` | Bring an older `.wondev/` up to the current source schema |
-| `wondev targets` | List known targets and what reads them |
+| `wondev upgrade` | Update starter-pack files, never touching ones you edited |
+| `wondev doctor` | Diagnose the project and report problems |
+| `wondev targets` | List known targets and what reads them (`--new` for recent additions) |
 
 Useful flags: `--targets a,b,c` and `--all` on `init`; `--dry-run`, `--force`, and
 `--target <name>` on `build`; `--cwd <dir>` and `--no-color` everywhere.
@@ -180,6 +182,26 @@ Run `wondev build` to regenerate them with this version, and commit the result.
 
 If the source format itself changes, `wondev migrate` updates `.wondev/` in place. It is
 never run automatically — it rewrites files you authored, so it waits to be asked.
+
+### Updating the starter pack
+
+`wondev upgrade` offers newer versions of the skills and memory scaffolds that `init`
+created:
+
+| Your file | What happens |
+| --------- | ------------ |
+| never edited | replaced with the new version |
+| **you edited it** | **left alone**; the new version is written to `<name>.new` |
+| you deleted it | stays deleted, unless `--restore` |
+| new in this release | added, unless `--no-new` |
+
+wondev deliberately does **not** attempt a three-way merge. Merging prose produces
+plausible-looking corruption — two reasonable sentences interleaved into one that instructs
+an agent to do something neither author intended — and conflict markers left inside a file
+an agent reads as instructions are worse still. A `.new` file next to yours is unglamorous
+and always correct.
+
+Flags: `--dry-run`, `--only <path>`, `--restore`, `--no-new`.
 
 Formats from a newer wondev are refused with a clear message rather than misread. See
 [docs/versioning.md](docs/versioning.md) for the full contract; the short version is that

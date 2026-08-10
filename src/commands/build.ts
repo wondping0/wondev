@@ -1,4 +1,6 @@
+import type { NamedTarget } from '../core/model.js';
 import { renderAll } from '../core/render/index.js';
+import { deprecationNotice } from '../core/registry.js';
 import { hasErrors } from '../core/source.js';
 import {
   applyPlan,
@@ -24,6 +26,7 @@ export async function runBuild(root: string, options: BuildOptions = {}): Promis
   reportIssues(ctx);
 
   const targets = options.target ? selectTarget(ctx, options.target) : ctx.targets;
+  if (!options.quiet) warnDeprecated(targets);
   const { files, owners } = renderAll(ctx.project, targets);
   const manifest = await loadManifest(root);
   const plan = await planWrites(root, files, owners, manifest);
@@ -53,6 +56,18 @@ export async function runBuild(root: string, options: BuildOptions = {}): Promis
       .filter(Boolean)
       .join(', ');
     success(summary);
+  }
+}
+
+/**
+ * Warn once per run when an enabled target has been deprecated, naming the replacement.
+ * Agents do move their config paths, and silently writing to a location nothing reads any
+ * more is the worst possible failure: everything looks like it worked.
+ */
+function warnDeprecated(targets: NamedTarget[]): void {
+  for (const { name } of targets) {
+    const notice = deprecationNotice(name);
+    if (notice) warn(notice);
   }
 }
 
