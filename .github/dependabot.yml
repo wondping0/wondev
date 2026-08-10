@@ -1,0 +1,16 @@
+version: 2
+updates:
+  # wondev has one runtime dependency on purpose, so this stays quiet by design.
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5
+    groups:
+      dev-dependencies:
+        dependency-type: development
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly

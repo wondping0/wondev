@@ -1,0 +1,56 @@
+name: Support a new agent
+description: Ask for a coding agent to be added to the built-in registry
+labels: ["target"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        You do not have to wait for a release. Any agent can be added to your own project
+        today under `customTargets` in `.wondev/wondev.yaml` — see the README. This issue is
+        for making it built in, so nobody else has to.
+
+  - type: input
+    id: agent
+    attributes:
+      label: Which agent
+      placeholder: e.g. Amp, Kilo Code, Trae
+    validations:
+      required: true
+
+  - type: input
+    id: path
+    attributes:
+      label: Where it reads its config
+      placeholder: e.g. .agentname/rules/ or AGENTNAME.md
+    validations:
+      required: true
+
+  - type: input
+    id: docs
+    attributes:
+      label: Link to the documentation that says so
+      description: >
+        Required. A wrong path fails silently — wondev writes a file nothing reads and
+        everything looks like it worked.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: shape
+    attributes:
+      label: Which shape does it use
+      options:
+        - One flattened markdown file
+        - One file per rule in a directory
+        - Something else (describe below)
+    validations:
+      required: true
+
+  - type: textarea
+    id: frontmatter
+    attributes:
+      label: Frontmatter it understands
+      description: >
+        For rule directories: which keys control always-on behaviour, path globs, and the
+        description. Leave blank if it takes plain markdown.
+      render: yaml

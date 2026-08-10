@@ -1,6 +1,26 @@
+<div align="center">
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/hero-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="assets/hero-light.svg">
+  <img alt="wondev compiles one .wondev directory into CLAUDE.md, AGENTS.md, .cursor/rules and more" src="assets/hero-light.svg" width="100%">
+</picture>
+
 # wondev
 
 **Write your AI agent knowledge once. Compile it for every agent.**
+
+[![CI](https://github.com/wondping0/wondev/actions/workflows/ci.yml/badge.svg)](https://github.com/wondping0/wondev/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/wondev.svg)](https://www.npmjs.com/package/wondev)
+[![node](https://img.shields.io/node/v/wondev.svg)](https://nodejs.org)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+[Website](https://wondping0.github.io/wondev/) ·
+[Changelog](CHANGELOG.md) ·
+[Security](docs/security.md) ·
+[Contributing](CONTRIBUTING.md)
+
+</div>
 
 ```bash
 npx wondev init
@@ -28,13 +48,27 @@ format of every agent your team uses. `wondev check` fails CI when they drift.
 
 TypeScript compiles to JavaScript. wondev compiles to agent config.
 
+```mermaid
+flowchart LR
+    subgraph SRC["📝 .wondev/ — you write this"]
+        M["memory/<br/><i>architecture, conventions,<br/>decisions</i>"]
+        S["skills/<br/><i>procedures, with the<br/>trigger that loads them</i>"]
+        C["commands/<br/><i>prompts you invoke<br/>by name</i>"]
+    end
+
+    SRC ==> B{{"wondev build"}}
+
+    B --> O1["CLAUDE.md<br/>.claude/skills/<br/>.claude/commands/"]
+    B --> O2["AGENTS.md<br/><i>read by 16 tools</i>"]
+    B --> O3[".cursor/rules/*.mdc"]
+    B --> O4[".github/copilot-instructions.md"]
+    B --> O5["GEMINI.md · CONVENTIONS.md<br/>.windsurf · .clinerules · .roo<br/>.continue · .kiro · .junie"]
+    B -.-> O6["anything you define<br/>in customTargets"]
 ```
-.wondev/                          CLAUDE.md
-  memory/                         AGENTS.md
-  skills/       ──  build  ──▶    .cursor/rules/*.mdc
-  commands/                       .github/copilot-instructions.md
-  wondev.yaml                     GEMINI.md ... and any agent you add
-```
+
+> [!NOTE]
+> Everything on the right is **generated**. You never edit it. `wondev check` fails your CI
+> if someone does.
 
 ## Quick start
 
@@ -70,6 +104,11 @@ Useful flags: `--targets a,b,c` and `--all` on `init`; `--dry-run`, `--force`, a
 **Memory** — durable project facts. Architecture, conventions, glossary, decision records.
 Set `always: true` for the few worth loading into every conversation.
 
+> [!TIP]
+> The highest-value thing to write down is what you **tried and rejected**. It is the one
+> thing an agent cannot infer from reading the code, and it stops the same bad idea coming
+> back every few weeks.
+
 ```markdown
 ---
 title: Architecture
@@ -93,7 +132,11 @@ description: Use when investigating a bug or failing test, before proposing a fi
 
 ## Supported agents
 
-Run `wondev targets` for the current list. Built in:
+Run `wondev targets` for the current list.
+
+<details open>
+<summary><b>12 agents built in</b> — click to collapse</summary>
+<br>
 
 | Target | Output | Also read by |
 | ------ | ------ | ------------ |
@@ -111,6 +154,8 @@ Run `wondev targets` for the current list. Built in:
 | `junie` | `.junie/guidelines.md` | JetBrains Junie |
 
 Aliases work too: `codex`, `zed`, `opencode`, `jules`, and others resolve to `agents`.
+
+</details>
 
 ### Any agent, including ones that do not exist yet
 
@@ -136,7 +181,9 @@ customTargets:
 
 ## It is safe to run in a real repository
 
-wondev never silently overwrites your work.
+> [!IMPORTANT]
+> wondev never silently overwrites your work, and it cannot write or delete outside the
+> project — even when the repository was authored by someone else.
 
 - **A manifest** (`.wondev/.manifest.json`) records a hash of every span wondev owns.
 - **Unknown files are never clobbered.** If `AGENTS.md` exists but wondev did not write it,
@@ -254,6 +301,25 @@ Linux produce byte-identical output.
 
 Requires Node 20+. Works on Windows, macOS, and Linux.
 
+## Documentation
+
+| Document | What it covers |
+| -------- | -------------- |
+| [docs/security.md](docs/security.md) | Threat model, enforced boundaries, residual risks |
+| [docs/versioning.md](docs/versioning.md) | What MAJOR, MINOR, and PATCH mean here |
+| [docs/releasing.md](docs/releasing.md) | Cutting a release, and the schema-bump checklist |
+| [docs/evolution-plan.md](docs/evolution-plan.md) | How updates and migrations are designed to work |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Setup, adding an agent, the golden-output rule |
+
+## Contributing
+
+Adding an agent usually needs no code — one entry in `src/core/registry.ts`, with a link to
+the documentation that confirms its config path. See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+Found something that reads, writes, or deletes outside the project root? Report it privately
+via [security advisories](https://github.com/wondping0/wondev/security/advisories/new)
+rather than a public issue. See [SECURITY.md](SECURITY.md).
+
 ## License
 
-MIT
+MIT © [wondping0](https://github.com/wondping0)

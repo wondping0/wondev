@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="300" viewBox="0 0 1200 300" role="img" aria-label="wondev compiles one .wondev directory into CLAUDE.md, AGENTS.md, .cursor/rules and more">
+  <title>wondev — one source, every agent</title>
+  <style>
+    text { font-family: ui-monospace, 'SFMono-Regular', 'JetBrains Mono', Menlo, Consolas, monospace; }
+    .out { opacity: 0; animation: land 6s ease-out infinite; }
+    @keyframes land {
+      0%      { opacity: 0; transform: translateX(-10px); }
+      8%, 78% { opacity: 1; transform: translateX(0); }
+      92%,100%{ opacity: 0; transform: translateX(-10px); }
+    }
+    .arrow { animation: nudge 6s ease-in-out infinite; }
+    @keyframes nudge {
+      0%, 100% { transform: translateX(0); }
+      6%       { transform: translateX(7px); }
+      14%      { transform: translateX(0); }
+    }
+    .o0 { animation-delay: 0.35s; }
+      .o1 { animation-delay: 0.48s; }
+      .o2 { animation-delay: 0.61s; }
+      .o3 { animation-delay: 0.74s; }
+      .o4 { animation-delay: 0.87s; }
+      .o5 { animation-delay: 1.00s; }
+      .o6 { animation-delay: 1.13s; }
+    @media (prefers-reduced-motion: reduce) {
+      .out { opacity: 1; animation: none; }
+      .arrow { animation: none; }
+    }
+  </style>
+
+  <rect width="1200" height="300" rx="14" fill="#0E1014"/>
+  <rect x="1" y="1" width="1198" height="298" rx="13" fill="none" stroke="#242830"/>
+
+  <text x="70" y="52" fill="#9A93FF" font-size="21" font-weight="700" letter-spacing="-0.5">wondev</text>
+  <text x="163" y="52" fill="#969CAC" font-size="14">one source, every agent</text>
+
+  <line x1="70" y1="70" x2="1130" y2="70" stroke="#242830"/>
+
+  <text x="70" y="96" fill="#969CAC" font-size="11" letter-spacing="1.6">YOU WRITE</text>
+  <text x="70" y="118" fill="#ECEEF3" font-weight="700" font-size="17">.wondev/</text>
+    <text x="70" y="148" fill="#969CAC" font-weight="400" font-size="17">├─ memory/</text>
+    <text x="70" y="178" fill="#969CAC" font-weight="400" font-size="17">├─ skills/</text>
+    <text x="70" y="208" fill="#969CAC" font-weight="400" font-size="17">└─ commands/</text>
+
+  <g class="arrow">
+    <text x="530" y="152" fill="#9A93FF" font-size="30">→</text>
+    <text x="512" y="180" fill="#9A93FF" font-size="11" letter-spacing="1.6">BUILD</text>
+  </g>
+
+  <text x="660" y="76" fill="#969CAC" font-size="11" letter-spacing="1.6">WONDEV WRITES</text>
+  <text class="out o0" x="660" y="100" fill="#ECEEF3" font-size="16"><tspan fill="#4FD1A0">+ </tspan>CLAUDE.md</text>
+    <text class="out o1" x="660" y="127" fill="#ECEEF3" font-size="16"><tspan fill="#4FD1A0">+ </tspan>AGENTS.md</text>
+    <text class="out o2" x="660" y="154" fill="#ECEEF3" font-size="16"><tspan fill="#4FD1A0">+ </tspan>.cursor/rules/</text>
+    <text class="out o3" x="660" y="181" fill="#ECEEF3" font-size="16"><tspan fill="#4FD1A0">+ </tspan>.github/copilot-instructions.md</text>
+    <text class="out o4" x="660" y="208" fill="#ECEEF3" font-size="16"><tspan fill="#4FD1A0">+ </tspan>GEMINI.md</text>
+    <text class="out o5" x="660" y="235" fill="#ECEEF3" font-size="16"><tspan fill="#4FD1A0">+ </tspan>.windsurf/rules/</text>
+    <text class="out o6" x="660" y="262" fill="#969CAC" font-size="14">…and 6 more</text>
+</svg>

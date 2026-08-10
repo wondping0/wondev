@@ -1,0 +1,62 @@
+name: Bug report
+description: Something wondev did that it should not have
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        If this is a security issue — a read, write, or delete outside the project root —
+        please report it privately instead:
+        [Security advisories](https://github.com/wondping0/wondev/security/advisories/new).
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you ran, and what wondev did.
+      placeholder: |
+        $ wondev build
+        ...output...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Smallest way to reproduce it
+      description: >
+        The fewer files the better. A `.wondev/wondev.yaml` plus one skill is usually
+        enough. Paste the files rather than describing them.
+      render: text
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: wondev version
+      description: Output of `wondev --version`
+    validations:
+      required: true
+
+  - type: input
+    id: env
+    attributes:
+      label: Node version and OS
+      placeholder: Node 22.12.0, Windows 11
+    validations:
+      required: true
+
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Output of `wondev doctor`
+      description: Optional, but it answers most of the questions we would ask next.
+      render: text
