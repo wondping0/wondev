@@ -6,32 +6,44 @@
       CI green across ubuntu/windows/macos on Node 20 and 22.
 - [x] **Repository fields set in `package.json`** — `repository`, `bugs`, `homepage`, and
       `author`. Provenance attestation requires `repository` to match the workflow's repo.
-- [ ] **npm account with 2FA.** Since 2026 npm refuses `npm publish` unless the account has
-      two-factor authentication, or the request uses a granular token explicitly marked to
-      bypass it. Enable 2FA at <https://www.npmjs.com/settings/~/profile>.
+- [x] **Credentials good enough to publish once.** Since 2026 npm refuses `npm publish`
+      unless the account has two-factor authentication, or the request uses a **Granular
+      Access Token** explicitly marked *Bypass two-factor authentication*, scoped to
+      **All Packages**.
 
-      A token that merely says "Publish" is **not** enough — that type does not bypass 2FA
-      and returns `E403` with a message naming this requirement.
+      Two things cost real time here and are worth writing down. A token of type "Publish"
+      is **not** enough — it does not bypass 2FA and returns `E403` naming the requirement.
+      And a token scoped to "Only select packages" cannot make the *first* publish, because
+      the package does not exist yet to be selected.
 
-- [ ] **`NPM_TOKEN` secret**, for tagged releases. Create a **Granular Access Token** with
-      read/write on `wondev` and 2FA bypass enabled, then add it at
-      <https://github.com/wondping0/wondev/settings/secrets/actions>.
+      0.1.0 went out this way on 2026-08-10, by hand.
 
-      Bypass tokens keep working for publishing until January 2027. After that, and
-      preferably sooner, switch to trusted publishing below.
+- [ ] **Trusted publishing.** Now possible, and the thing to do next: `wondev` exists, so
+      the package settings page exists. Add a trusted publisher at
+      <https://www.npmjs.com/package/wondev/access> pointing at `wondping0/wondev` and
+      workflow `release.yml`.
 
-- [ ] **Trusted publishing (after the first release).** Once `wondev` exists on npm, add a
-      trusted publisher under the package settings pointing at `wondping0/wondev` and
-      `release.yml`. OIDC then supplies a short-lived credential per run and `NPM_TOKEN` can
-      be deleted. The workflow already pins Node 22.14 and upgrades npm, which are its
-      minimum versions.
+      OIDC then mints a short-lived credential per run. No long-lived token is stored
+      anywhere, so there is nothing to leak and nothing to rotate — which is strictly better
+      than the `NPM_TOKEN` alternative, not merely more modern. The workflow already pins
+      Node 22.14 and upgrades npm, both of which it requires.
 
-      This cannot be used for a package's **first** publish, because the setting lives in
-      package settings and the package does not exist yet.
+- [ ] **Revoke the first-publish token.** Whatever token published 0.1.0 has write access to
+      every package on the account. Once trusted publishing works, delete it at
+      <https://www.npmjs.com/settings/~/tokens>. Bypass tokens keep working until January
+      2027, but that is a deadline, not a reason to keep one.
 
-> The npm name `wondev` was unclaimed as of 2026-08-10. Publishing the first version claims
-> it. npm only allows unpublishing within 72 hours, and the name stays reserved afterwards,
-> so treat the first publish as permanent.
+- [ ] **`NPM_TOKEN` secret** — only as a fallback if trusted publishing cannot be configured.
+      A Granular Access Token with read/write on `wondev`, added at
+      <https://github.com/wondping0/wondev/settings/secrets/actions>. `release.yml` reads it
+      through `NODE_AUTH_TOKEN`, which npm consults only when no trusted publisher is set.
+
+> The npm name `wondev` was claimed on 2026-08-10 and is permanent. npm only allows
+> unpublishing within 72 hours, and the name stays reserved afterwards.
+
+> **No `v0.1.0` tag exists.** The first release was published by hand before tagging was set
+> up, and adding the tag now would fire `release.yml` against a version already on the
+> registry — a guaranteed red run for no gain. Tag history starts at `v0.1.1`.
 
 ## Every release
 
@@ -64,7 +76,8 @@
 
 ## Publishing by hand
 
-For the very first release, or whenever the workflow is unavailable:
+The fallback, for when the workflow is unavailable. 0.1.0 went out this way because trusted
+publishing cannot cover a first publish.
 
 ```bash
 npm login
@@ -74,8 +87,8 @@ npm publish
 `prepublishOnly` runs the full `verify` pipeline — typecheck, build, 191 tests — so a broken
 build cannot be published even by mistake. There is no need to run `verify` yourself first.
 
-A hand publish gets no provenance attestation; only the tagged workflow does. That is fine
-for 0.1.0, and worth setting up before the next release.
+A hand publish gets **no provenance attestation**; only the tagged workflow does. Prefer the
+tag route now that it is available.
 
 ## After publishing
 

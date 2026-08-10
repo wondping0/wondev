@@ -11,6 +11,16 @@ a patch, because it makes `wondev check` fail in every project that upgrades.
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-08-11
+
+### Fixed
+
+- `require('wondev/package.json')` threw `ERR_PACKAGE_PATH_NOT_EXPORTED`. The `exports` map
+  now includes the `./package.json` subpath, which bundlers and tooling routinely read.
+  Found by installing 0.1.0 from the registry and reading its version back.
+
+Generated output is byte-identical to 0.1.0, so upgrading requires no rebuild.
+
 ## [0.1.0] - 2026-08-10
 
 First release.
