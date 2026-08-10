@@ -2,7 +2,8 @@ import path from 'node:path';
 import fs from 'node:fs/promises';
 import type { Command, MemoryDoc, Project, Skill } from './model.js';
 import { asBoolean, asString, asStringArray, parseFrontmatter } from './frontmatter.js';
-import { listFilesRecursive, normalizeEol, readFileIfExists } from '../util/fs.js';
+import { listFilesRecursive, normalizeEol, pathExists } from '../util/fs.js';
+import { IO_CONCURRENCY, mapLimit } from '../util/async.js';
 import { toPosix } from '../util/paths.js';
 import { WONDEV_DIR, wondevDir } from './config.js';
 
@@ -35,9 +36,18 @@ export async function loadProject(root: string, projectName: string): Promise<Lo
   const base = wondevDir(root);
   const issues: Issue[] = [];
 
-  const memory = await loadMemory(path.join(base, MEMORY_SUBDIR), issues);
-  const skills = await loadSkills(path.join(base, SKILLS_SUBDIR), issues);
-  const commands = await loadCommands(path.join(base, COMMANDS_SUBDIR), issues);
+  // The three directories are independent, so they load together. Each collects into its
+  // own issue list first, which keeps reported order stable regardless of completion order.
+  const memoryIssues: Issue[] = [];
+  const skillIssues: Issue[] = [];
+  const commandIssues: Issue[] = [];
+
+  const [memory, skills, commands] = await Promise.all([
+    loadMemory(path.join(base, MEMORY_SUBDIR), memoryIssues),
+    loadSkills(path.join(base, SKILLS_SUBDIR), skillIssues),
+    loadCommands(path.join(base, COMMANDS_SUBDIR), commandIssues),
+  ]);
+  issues.push(...memoryIssues, ...skillIssues, ...commandIssues);
 
   checkMemoryLinks(memory, issues);
 
@@ -51,12 +61,16 @@ export function hasErrors(issues: Issue[]): boolean {
 
 async function loadMemory(dir: string, issues: Issue[]): Promise<MemoryDoc[]> {
   const files = (await listFilesRecursive(dir)).filter((f) => f.endsWith('.md'));
+  const contents = await mapLimit(files, IO_CONCURRENCY, async (rel) =>
+    normalizeEol(await fs.readFile(path.join(dir, rel), 'utf8')),
+  );
+
   const docs: MemoryDoc[] = [];
   const seen = new Map<string, string>();
 
-  for (const rel of files) {
+  for (const [index, rel] of files.entries()) {
     const sourcePath = toPosix(path.join(WONDEV_DIR, MEMORY_SUBDIR, rel));
-    const raw = normalizeEol((await fs.readFile(path.join(dir, rel), 'utf8')));
+    const raw = contents[index] as string;
     const { data, body } = parseFrontmatter(raw, sourcePath);
     const slug = rel.replace(/\.md$/, '');
 
@@ -95,13 +109,17 @@ async function loadMemory(dir: string, issues: Issue[]): Promise<MemoryDoc[]> {
 
 async function loadSkills(dir: string, issues: Issue[]): Promise<Skill[]> {
   const candidates = await findSkillFiles(dir);
+  const contents = await mapLimit(candidates, IO_CONCURRENCY, async ({ file }) =>
+    normalizeEol(await fs.readFile(file, 'utf8')),
+  );
+
   const skills: Skill[] = [];
   const seen = new Map<string, string>();
 
-  for (const { file, fallbackName } of candidates) {
+  for (const [index, { file, fallbackName }] of candidates.entries()) {
     const rel = toPosix(path.relative(dir, file));
     const sourcePath = toPosix(path.join(WONDEV_DIR, SKILLS_SUBDIR, rel));
-    const raw = normalizeEol(await fs.readFile(file, 'utf8'));
+    const raw = contents[index] as string;
     const { data, body } = parseFrontmatter(raw, sourcePath);
 
     const name = asString(data['name']) ?? fallbackName;
@@ -149,30 +167,40 @@ async function findSkillFiles(dir: string): Promise<Array<{ file: string; fallba
     throw err;
   }
 
-  const out: Array<{ file: string; fallbackName: string }> = [];
-  for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+  const sorted = entries.sort((a, b) => a.name.localeCompare(b.name));
+
+  // Probing each directory for a SKILL.md is one stat per skill; done together it is one
+  // round trip instead of N.
+  const found = await mapLimit(sorted, IO_CONCURRENCY, async (entry) => {
     if (entry.isDirectory()) {
       const skillFile = path.join(dir, entry.name, 'SKILL.md');
-      if (await readFileIfExists(skillFile) !== null) {
-        out.push({ file: skillFile, fallbackName: entry.name });
-      }
-    } else if (entry.isFile() && entry.name.endsWith('.md') && entry.name !== 'README.md') {
-      out.push({ file: path.join(dir, entry.name), fallbackName: entry.name.replace(/\.md$/, '') });
+      return (await pathExists(skillFile))
+        ? { file: skillFile, fallbackName: entry.name }
+        : null;
     }
-  }
-  return out;
+    if (entry.isFile() && entry.name.endsWith('.md') && entry.name !== 'README.md') {
+      return { file: path.join(dir, entry.name), fallbackName: entry.name.replace(/\.md$/, '') };
+    }
+    return null;
+  });
+
+  return found.filter((v): v is { file: string; fallbackName: string } => v !== null);
 }
 
 async function loadCommands(dir: string, issues: Issue[]): Promise<Command[]> {
   const files = (await listFilesRecursive(dir)).filter(
     (f) => f.endsWith('.md') && path.basename(f) !== 'README.md',
   );
+  const contents = await mapLimit(files, IO_CONCURRENCY, async (rel) =>
+    normalizeEol(await fs.readFile(path.join(dir, rel), 'utf8')),
+  );
+
   const commands: Command[] = [];
   const seen = new Map<string, string>();
 
-  for (const rel of files) {
+  for (const [index, rel] of files.entries()) {
     const sourcePath = toPosix(path.join(WONDEV_DIR, COMMANDS_SUBDIR, rel));
-    const raw = normalizeEol(await fs.readFile(path.join(dir, rel), 'utf8'));
+    const raw = contents[index] as string;
     const { data, body } = parseFrontmatter(raw, sourcePath);
 
     const name = asString(data['name']) ?? path.basename(rel).replace(/\.md$/, '');

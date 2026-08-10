@@ -10,7 +10,8 @@ import {
   sha256,
   writeFileAtomic,
 } from '../util/fs.js';
-import { absFrom } from '../util/paths.js';
+import { absFrom, createRootGuard, isInsideRoot } from '../util/paths.js';
+import { IO_CONCURRENCY, mapLimit } from '../util/async.js';
 import { wondevVersion } from '../util/version.js';
 import { MANIFEST_SCHEMA_VERSION } from './schema.js';
 
@@ -61,6 +62,18 @@ export async function loadManifest(root: string): Promise<Manifest> {
     throw new WondevError(
       `${MANIFEST_REL} uses format version ${parsed.version}, but this wondev supports up to ${MANIFEST_SCHEMA_VERSION}.`,
       'Upgrade wondev: npm install -g wondev@latest',
+    );
+  }
+
+  // The manifest drives deletion, and it lives in the repository, so it is untrusted input.
+  // A crafted entry such as "../../.ssh/authorized_keys" would otherwise make `clean` or a
+  // stale-file sweep delete files outside the project. wondev never writes such a path, so
+  // finding one means the file was tampered with: fail loudly rather than sanitise quietly.
+  const unsafe = Object.keys(parsed.files ?? {}).filter((p) => !isInsideRoot(p));
+  if (unsafe.length > 0) {
+    throw new WondevError(
+      `${MANIFEST_REL} contains ${unsafe.length} path(s) outside the project: ${unsafe.slice(0, 3).join(', ')}`,
+      'wondev never writes such paths. Delete .wondev/.manifest.json and re-run `wondev build`.',
     );
   }
 
@@ -155,12 +168,35 @@ export async function planWrites(
   targetOf: Map<string, string>,
   manifest: Manifest,
 ): Promise<PlanItem[]> {
+  // Every output path is resolved through symlinks before it is read or written. A cloned
+  // repository can contain a directory symlink pointing outside itself, which the lexical
+  // check alone would not catch.
+  //
+  // The lexical test is per file and free; the symlink resolution is per directory, so only
+  // one representative path per directory needs to reach the filesystem.
+  const ensureInside = createRootGuard(root);
+  const representativeByDir = new Map<string, string>();
+  for (const file of files) {
+    if (!isInsideRoot(file.path)) {
+      throw new WondevError(`Path escapes the project: ${file.path}`);
+    }
+    const dir = path.posix.dirname(file.path);
+    if (!representativeByDir.has(dir)) representativeByDir.set(dir, file.path);
+  }
+  await mapLimit([...representativeByDir.values()], IO_CONCURRENCY, ensureInside);
+
+  // Reading the existing output dominates this command's wall clock on any real project, so
+  // it happens up front with bounded concurrency. The decision logic below stays sequential
+  // and unchanged, which keeps the plan deterministic.
+  const existingContents = await mapLimit(files, IO_CONCURRENCY, async (file) => {
+    const raw = await readFileIfExists(absFrom(root, file.path));
+    return raw === null ? null : normalizeEol(raw);
+  });
+
   const plan: PlanItem[] = [];
 
-  for (const file of files) {
-    const abs = absFrom(root, file.path);
-    const existingRaw = await readFileIfExists(abs);
-    const existing = existingRaw === null ? null : normalizeEol(existingRaw);
+  for (const [index, file] of files.entries()) {
+    const existing = existingContents[index] ?? null;
     const entry = manifest.files[file.path];
     const target = targetOf.get(file.path) ?? 'unknown';
 
@@ -270,13 +306,16 @@ export async function applyPlan(
   plan: PlanItem[],
   manifest: Manifest,
 ): Promise<ApplyResult> {
-  const written: PlanItem[] = [];
+  const written = plan.filter((item) => item.action !== 'unchanged');
+
+  // Writes are independent: each goes to its own path via a uniquely named temp file, so
+  // running them concurrently cannot interleave. Ordering only matters for the report,
+  // which uses `written` rather than completion order.
+  await mapLimit(written, IO_CONCURRENCY, async (item) => {
+    await writeFileAtomic(absFrom(root, item.path), item.nextContent);
+  });
 
   for (const item of plan) {
-    if (item.action !== 'unchanged') {
-      await writeFileAtomic(absFrom(root, item.path), item.nextContent);
-      written.push(item);
-    }
     manifest.files[item.path] = { hash: item.ownedHash, target: item.target, mode: item.mode };
   }
 
@@ -313,6 +352,14 @@ export async function removeOwned(
   rel: string,
   mode: WriteMode,
 ): Promise<RemoveOutcome> {
+  // Defence in depth. `loadManifest` already rejects escaping paths, but this is the only
+  // function in wondev that deletes, so it re-checks no matter who called it -- lexically,
+  // and then through any symlink on the way.
+  if (!isInsideRoot(rel)) {
+    throw new WondevError(`Refusing to delete outside the project: ${rel}`);
+  }
+  await createRootGuard(root)(rel);
+
   const abs = absFrom(root, rel);
   const raw = await readFileIfExists(abs);
   if (raw === null) return 'missing';

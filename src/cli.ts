@@ -2,16 +2,6 @@
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { fileURLToPath } from 'node:url';
-import { runAdd, parseKind } from './commands/add.js';
-import { runBuild } from './commands/build.js';
-import { runCheck } from './commands/check.js';
-import { runClean } from './commands/clean.js';
-import { runDoctor } from './commands/doctor.js';
-import { runInit } from './commands/init.js';
-import { runMigrate } from './commands/migrate.js';
-import { runUpgrade } from './commands/upgrade.js';
-import { runWatch } from './commands/watch.js';
-import { loadConfig } from './core/config.js';
 import { BUILTIN_TARGETS, TARGET_ALIASES, targetsAddedSince } from './core/registry.js';
 import { isWondevError, WondevError } from './util/errors.js';
 import { readFileIfExists } from './util/fs.js';
@@ -58,6 +48,13 @@ ${style.bold('Examples')}
   wondev check
 `.trim();
 
+/**
+ * Commands are imported on demand.
+ *
+ * Loading every command eagerly pulled in the YAML parser and the whole core for `--help`,
+ * `--version`, and `targets`, none of which touch a project. Each command now pays only for
+ * what it uses, which measurably shortens the most common no-op invocations.
+ */
 async function readVersion(): Promise<string> {
   const pkgPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'package.json');
   const raw = await readFileIfExists(pkgPath);
@@ -73,6 +70,7 @@ async function listTargets(root: string, onlyNew: boolean): Promise<void> {
   let since: string | undefined;
   if (onlyNew) {
     // Needs the stamp written at init; without it there is no baseline to compare against.
+    const { loadConfig } = await import('./core/config.js');
     const config = await loadConfig(root);
     since = config.wondevVersion;
     if (!since) {
@@ -158,7 +156,8 @@ async function main(argv: string[]): Promise<number> {
   const root = path.resolve(values.cwd ?? process.cwd());
 
   switch (command) {
-    case 'init':
+    case 'init': {
+      const { runInit } = await import('./commands/init.js');
       await runInit(root, {
         targets: values.targets ? values.targets.split(',') : undefined,
         all: values.all === true,
@@ -166,18 +165,23 @@ async function main(argv: string[]): Promise<number> {
         skipBuild: values['skip-build'] === true,
       });
       return 0;
+    }
 
-    case 'build':
+    case 'build': {
+      const { runBuild } = await import('./commands/build.js');
       await runBuild(root, {
         force: values.force === true,
         dryRun: values['dry-run'] === true,
         target: values.target,
       });
       return 0;
+    }
 
-    case 'watch':
+    case 'watch': {
+      const { runWatch } = await import('./commands/watch.js');
       await runWatch(root, { force: values.force === true, target: values.target });
       return 0;
+    }
 
     case 'add': {
       const kind = positionals[1];
@@ -187,23 +191,31 @@ async function main(argv: string[]): Promise<number> {
           'Usage: wondev add <skill|memory|command> <name>',
         );
       }
+      const { runAdd, parseKind } = await import('./commands/add.js');
       await runAdd(root, parseKind(kind), name);
       return 0;
     }
 
-    case 'check':
+    case 'check': {
+      const { runCheck } = await import('./commands/check.js');
       await runCheck(root);
       return 0;
+    }
 
-    case 'clean':
+    case 'clean': {
+      const { runClean } = await import('./commands/clean.js');
       await runClean(root);
       return 0;
+    }
 
-    case 'migrate':
+    case 'migrate': {
+      const { runMigrate } = await import('./commands/migrate.js');
       await runMigrate(root, { dryRun: values['dry-run'] === true });
       return 0;
+    }
 
-    case 'upgrade':
+    case 'upgrade': {
+      const { runUpgrade } = await import('./commands/upgrade.js');
       await runUpgrade(root, {
         dryRun: values['dry-run'] === true,
         only: values.only,
@@ -211,10 +223,13 @@ async function main(argv: string[]): Promise<number> {
         noNew: values['no-new'] === true,
       });
       return 0;
+    }
 
-    case 'doctor':
+    case 'doctor': {
+      const { runDoctor } = await import('./commands/doctor.js');
       await runDoctor(root, { online: values.online === true });
       return 0;
+    }
 
     case 'targets':
       await listTargets(root, values.new === true);

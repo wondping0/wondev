@@ -4,18 +4,23 @@ import { isInsideRoot } from '../../util/paths.js';
 import { renderClaude } from './claude.js';
 import { renderRuleDir } from './rule-dir.js';
 import { renderSingleFile } from './single-file.js';
+import { flattenProject } from './shared.js';
 
 /**
  * Turn a project into the files one target wants. Pure: no filesystem access, so the whole
  * compilation step is testable with golden files and the risky I/O stays in `writer`.
  */
-export function renderTarget(project: Project, named: NamedTarget): RenderedFile[] {
+export function renderTarget(
+  project: Project,
+  named: NamedTarget,
+  flattened?: string,
+): RenderedFile[] {
   const { target } = named;
   let files: RenderedFile[];
 
   switch (target.engine) {
     case 'single-file':
-      files = renderSingleFile(project, target);
+      files = renderSingleFile(project, target, flattened);
       break;
     case 'rule-dir':
       files = renderRuleDir(project, target);
@@ -49,8 +54,15 @@ export interface RenderResult {
 export function renderAll(project: Project, targets: NamedTarget[]): RenderResult {
   const byPath = new Map<string, { file: RenderedFile; target: string }>();
 
+  // Every `single-file` target renders the same flattened document. A typical project
+  // enables several of them, so flattening once and sharing the result removes work that
+  // scales with both project size and target count.
+  let flattened: string | undefined;
+  const flattenOnce = (): string => (flattened ??= flattenProject(project));
+
   for (const named of targets) {
-    for (const file of renderTarget(project, named)) {
+    const memo = named.target.engine === 'single-file' ? flattenOnce() : undefined;
+    for (const file of renderTarget(project, named, memo)) {
       const existing = byPath.get(file.path);
       if (existing && existing.file.content !== file.content) {
         throw new WondevError(
