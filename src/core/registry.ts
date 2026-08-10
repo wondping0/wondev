@@ -116,7 +116,18 @@ export const BUILTIN_TARGETS: Record<string, RegistryEntry> = {
   continue: {
     label: 'Continue',
     readBy: ['Continue'],
-    target: { engine: 'rule-dir', path: '.continue/rules', ext: '.md' },
+    // Continue reads optional YAML frontmatter on rule files; without this map the glob
+    // scoping authored in .wondev/ would be silently dropped for this target.
+    target: {
+      engine: 'rule-dir',
+      path: '.continue/rules',
+      ext: '.md',
+      frontmatter: {
+        description: 'description',
+        globs: 'globs',
+        globsFormat: 'array',
+      },
+    },
   },
 
   kiro: {
