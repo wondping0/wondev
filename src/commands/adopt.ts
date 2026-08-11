@@ -29,6 +29,46 @@ export interface AdoptOptions {
   force?: boolean;
   /** Extra directory of markdown to take in as memory, e.g. an Obsidian vault. */
   vault?: string | undefined;
+  /**
+   * Frontmatter keys to rename on the way in, as `from=to`.
+   *
+   * A project that kept its own vocabulary -- `diperiksa` where wondev expects `verified` --
+   * would otherwise adopt cleanly and lose the meaning: the key survives in `extra`, but
+   * nothing reads it, so no freshness tick ever appears. Renaming is the whole fix, and
+   * guessing which key means what is not something adopt should do on its own.
+   */
+  map?: string[] | undefined;
+}
+
+/** `diperiksa=verified` → a rename applied to adopted frontmatter. */
+export function parseKeyMap(pairs: readonly string[]): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const pair of pairs) {
+    const eq = pair.indexOf('=');
+    const from = eq === -1 ? '' : pair.slice(0, eq).trim();
+    const to = eq === -1 ? '' : pair.slice(eq + 1).trim();
+    if (from === '' || to === '') {
+      throw new WondevError(
+        `Invalid --map value "${pair}".`,
+        'Expected `from=to`, for example `--map diperiksa=verified`.',
+      );
+    }
+    out.set(from, to);
+  }
+  return out;
+}
+
+/** Rename keys, keeping the original order so an adopted file stays recognisable. */
+export function applyKeyMap(
+  data: Record<string, unknown>,
+  renames: Map<string, string>,
+): Record<string, unknown> {
+  if (renames.size === 0) return data;
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(data)) {
+    out[renames.get(key) ?? key] = value;
+  }
+  return out;
 }
 
 interface Planned {
@@ -126,8 +166,9 @@ export async function runAdopt(root: string, options: AdoptOptions = {}): Promis
   planned.push(...(await adoptClaudeDir(root, detectedTargets, skipped)));
 
   // 3. An optional directory of markdown, taken in as on-demand memory.
+  const keyMap = parseKeyMap(options.map ?? []);
   if (options.vault) {
-    planned.push(...(await adoptVault(root, options.vault, skipped)));
+    planned.push(...(await adoptVault(root, options.vault, skipped, keyMap)));
   }
 
   if (planned.length === 0) {
@@ -237,7 +278,12 @@ async function adoptClaudeDir(
  * original title is preserved in frontmatter, and `[[wikilinks]]` are left untouched:
  * wondev resolves them against slugs *and* basenames, so they keep working.
  */
-async function adoptVault(root: string, vaultRel: string, skipped: string[]): Promise<Planned[]> {
+async function adoptVault(
+  root: string,
+  vaultRel: string,
+  skipped: string[],
+  keyMap: Map<string, string>,
+): Promise<Planned[]> {
   const abs = path.join(root, vaultRel);
   if (!(await pathExists(abs))) {
     throw new WondevError(`No such directory: ${vaultRel}`);
@@ -270,7 +316,7 @@ async function adoptVault(root: string, vaultRel: string, skipped: string[]): Pr
 
     // Everything already in the file is kept: a vault's own vocabulary survives in `extra`,
     // and adopt has no business deciding which of someone's keys matter.
-    const front: Record<string, unknown> = { ...data, title, always: false };
+    const front: Record<string, unknown> = { ...applyKeyMap(data, keyMap), title, always: false };
     out.push({
       rel: `memory/${slugFromFilename(base)}.md`,
       from: `${vaultRel}/${posix}`,

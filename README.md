@@ -90,6 +90,8 @@ architecture, conventions, glossary, and decision records. Edit them; they are y
 | `wondev build` | Compile to every enabled target |
 | `wondev watch` | Rebuild whenever `.wondev/` changes |
 | `wondev add <skill\|memory\|command\|agent> <name>` | Scaffold one new artifact |
+| `wondev remove <type> <name>` | Delete one, and sweep the output it produced |
+| `wondev list` | Show what this project defines, and what each piece costs |
 | `wondev check` | Validate sources and detect drift — exits 1 on failure |
 | `wondev clean` | Remove generated files, per the manifest |
 | `wondev migrate` | Bring an older `.wondev/` up to the current source schema |
@@ -266,6 +268,7 @@ skills with their attachments, commands, subagents — and writes `.wondev/` fro
 ```bash
 npx wondev adopt --dry-run                    # see the plan first
 npx wondev adopt --vault docs/dev-guide       # also take a markdown directory in as memory
+npx wondev adopt --map diperiksa=verified     # rename a frontmatter key on the way in
 ```
 
 It is honest about being lossy. A skill trigger that was never written down cannot be read

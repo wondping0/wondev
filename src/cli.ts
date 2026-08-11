@@ -19,7 +19,9 @@ ${style.bold('Commands')}
   build                    Compile .wondev/ into every enabled target
   watch                    Rebuild whenever .wondev/ changes
   add <type> <name>        Add a skill, memory, command, or agent
+  remove <type> <name>     Delete one, and sweep the output it produced
                            (type: skill|memory|command|agent)
+  list                     Show what this project defines, and what each piece costs
   check                    Validate sources and detect drift  (exit 1 on failure)
   clean                    Remove generated files listed in the manifest
   migrate                  Bring an older .wondev/ up to the current source schema
@@ -33,13 +35,15 @@ ${style.bold('Options')}
   --all                    init: enable every known target
   --force                  init, adopt: overwrite .wondev/ · build: overwrite conflicting files
   --target <name>          build: build only one target
-  --dry-run                build, migrate, upgrade, adopt: show changes, write nothing
+  --dry-run                build, migrate, upgrade, adopt, remove: show changes, write nothing
+  --no-build               remove: delete the source without rebuilding
   --only <path>            upgrade: limit to one starter file or directory
   --restore                upgrade: re-add starter files you deleted
   --no-new                 upgrade: skip templates that are new in this release
   --new                    targets: only those added since you initialised
   --verbose                targets: also show when each output path was last verified
   --vault <dir>            adopt: also take a markdown directory in as memory
+  --map <from=to>          adopt: rename a frontmatter key (repeatable)
   --online                 doctor: also ask npm whether a newer wondev exists
   --no-color               Disable coloured output
   -h, --help               Show this help
@@ -168,7 +172,9 @@ async function main(argv: string[]): Promise<number> {
       new: { type: 'boolean' },
       online: { type: 'boolean' },
       vault: { type: 'string' },
+      map: { type: 'string', multiple: true },
       verbose: { type: 'boolean' },
+      'no-build': { type: 'boolean' },
     },
   });
 
@@ -263,6 +269,7 @@ async function main(argv: string[]): Promise<number> {
         dryRun: values['dry-run'] === true,
         force: values.force === true,
         vault: typeof values.vault === 'string' ? values.vault : undefined,
+        map: values.map,
       });
       return 0;
     }
@@ -270,6 +277,27 @@ async function main(argv: string[]): Promise<number> {
     case 'doctor': {
       const { runDoctor } = await import('./commands/doctor.js');
       await runDoctor(root, { online: values.online === true });
+      return 0;
+    }
+
+    case 'remove':
+    case 'rm': {
+      const kind = positionals[1];
+      const name = positionals[2];
+      if (!kind || !name) {
+        throw new WondevError('Usage: wondev remove <skill|memory|command|agent> <name>');
+      }
+      const { runRemove } = await import('./commands/remove.js');
+      await runRemove(root, kind, name, {
+        dryRun: values['dry-run'] === true,
+        noBuild: values['no-build'] === true,
+      });
+      return 0;
+    }
+
+    case 'list': {
+      const { runList } = await import('./commands/list.js');
+      await runList(root);
       return 0;
     }
 

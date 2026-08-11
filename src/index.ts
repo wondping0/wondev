@@ -78,6 +78,8 @@ export { runMigrate } from './commands/migrate.js';
 export { runUpgrade } from './commands/upgrade.js';
 export { runDoctor } from './commands/doctor.js';
 export { runAdopt } from './commands/adopt.js';
+export { runRemove } from './commands/remove.js';
+export { runList } from './commands/list.js';
 export { runWatch } from './commands/watch.js';
 
 export {

@@ -11,6 +11,30 @@ a patch, because it makes `wondev check` fail in every project that upgrades.
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-08-11
+
+### Added
+
+- **`wondev remove <type> <name>`.** Deleting an artifact was always possible — remove the
+  source, rebuild, and the stale-file sweep cleans up — but nothing said so, so the
+  reasonable conclusion was that it could not be done safely. The rebuild is included
+  deliberately: removing the source without it leaves generated copies in every target,
+  which is worse than not removing it at all. `--dry-run` and `--no-build` are available.
+
+- **`wondev list`.** What this project defines, and what each piece costs: always-on memory
+  with its running total, on-demand memory with triggers, skills marked inlined or
+  referenced, subagents, and commands. `doctor` diagnoses and `check` verifies; neither
+  answered the plainest question about an unfamiliar repository.
+
+- **`wondev adopt --map <from>=<to>`.** Renames a frontmatter key on the way in. A project
+  with its own vocabulary — `diperiksa` where wondev reads `verified` — previously adopted
+  cleanly and lost the meaning: the key survived in `extra`, nothing read it, and no
+  freshness tick ever appeared. A malformed pair is refused rather than ignored, since
+  silently dropping it produces exactly that same invisible failure.
+
+- **`wondev targets --verbose`** shows when each output path was last checked against its
+  vendor's documentation, and how many never have been.
+
 ## [0.7.0] - 2026-08-11
 
 Generated output changes substantially again, in the same direction as 0.3.0. Run

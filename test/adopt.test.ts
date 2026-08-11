@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { runAdopt, rewriteWikilinks, slugFromFilename } from '../src/commands/adopt.js';
+import {
+  applyKeyMap,
+  parseKeyMap,
+  rewriteWikilinks,
+  runAdopt,
+  slugFromFilename,
+} from '../src/commands/adopt.js';
 import { loadProject } from '../src/core/source.js';
 import { catchWondevError, cleanup, exists, read, silence, tmpRoot, write } from './helpers.js';
 
@@ -146,5 +152,37 @@ describe('wondev adopt', () => {
     expect(list).toContain('claude');
     expect(list).toContain('gemini');
     expect(list).not.toContain('cursor');
+  });
+});
+
+describe('frontmatter key mapping', () => {
+  it('parses from=to pairs', () => {
+    expect([...parseKeyMap(['diperiksa=verified']).entries()]).toEqual([['diperiksa', 'verified']]);
+  });
+
+  it('refuses a pair it cannot read, rather than ignoring it', async () => {
+    // Silently dropping a malformed map is the wrong failure: the user believes the rename
+    // happened and only finds out when no freshness tick ever appears.
+    for (const bad of ['diperiksa', '=verified', 'diperiksa=']) {
+      const err = await catchWondevError(async () => parseKeyMap([bad]));
+      expect(err.message).toMatch(/Invalid --map value/);
+      // Guidance lives in `hint`, per this project's convention.
+      expect(err.hint).toMatch(/from=to/);
+    }
+  });
+
+  it('renames keys and leaves the rest alone', () => {
+    const out = applyKeyMap({ diperiksa: '2026-08-10', owner: 'x' }, new Map([['diperiksa', 'verified']]));
+    expect(out).toEqual({ verified: '2026-08-10', owner: 'x' });
+  });
+
+  it('maps a vault key into the field wondev actually reads', async () => {
+    await write(root, 'CLAUDE.md', '# P\n\nx\n');
+    await write(root, 'vault/a.md', '---\ndiperiksa: 2026-08-10\n---\n\nBody.\n');
+    await adopt({ vault: 'vault', map: ['diperiksa=verified'] });
+
+    const { project } = await loadProject(root, 'demo');
+    const doc = project.memory.find((d) => d.slug === 'a');
+    expect(doc?.verified).toBe('2026-08-10');
   });
 });
