@@ -7,3 +7,6 @@
 1. Do the first thing.
 2. Verify it worked.
 3. Only then do the second thing.
+
+**Reference material** — read on demand, not included here:
+- `.wondev/skills/example-skill/references/deep-dive.md`

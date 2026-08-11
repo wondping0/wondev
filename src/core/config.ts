@@ -16,6 +16,26 @@ import { isInsideRoot } from '../util/paths.js';
 export const WONDEV_DIR = '.wondev';
 export const CONFIG_FILE = 'wondev.yaml';
 
+/** An extra index column, drawing on a frontmatter key wondev does not interpret. */
+export interface IndexColumn {
+  key: string;
+  label: string;
+}
+
+export interface IndexConfig {
+  /** Where the table is written, relative to the project root. */
+  file: string;
+  /**
+   * Ceiling on always-on context, in estimated tokens. Absent means no enforcement.
+   *
+   * There is deliberately no default. A default would fail `check` in every project that
+   * upgrades and happens to sit above a number wondev picked, on a MINOR bump nobody read
+   * the notes for -- the exact failure docs/versioning.md exists to prevent.
+   */
+  budget?: number;
+  columns: IndexColumn[];
+}
+
 export interface WondevConfig {
   name: string;
   targets: string[];
@@ -24,6 +44,8 @@ export interface WondevConfig {
   schema: number;
   /** The wondev release that last wrote this file, for diagnostics. */
   wondevVersion?: string;
+  /** Memory index settings. Absent means no index is generated. */
+  index?: IndexConfig;
 }
 
 export function wondevDir(root: string): string {
@@ -79,7 +101,67 @@ export async function loadConfig(root: string): Promise<WondevConfig> {
   const config: WondevConfig = { name, targets, customTargets, schema };
   const writtenBy = typeof obj['wondevVersion'] === 'string' ? obj['wondevVersion'] : undefined;
   if (writtenBy) config.wondevVersion = writtenBy;
+  const index = readIndex(obj['index']);
+  if (index) config.index = index;
   return config;
+}
+
+/**
+ * Read the `index:` block.
+ *
+ * Every key is optional and the whole block is optional: with no `index.file`, wondev
+ * generates no index and behaves exactly as it did before the feature existed.
+ */
+function readIndex(value: unknown): IndexConfig | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== 'object' || Array.isArray(value)) {
+    throw new WondevError(`${WONDEV_DIR}/${CONFIG_FILE}: "index" must be a mapping.`);
+  }
+  const obj = value as Record<string, unknown>;
+
+  const file = typeof obj['file'] === 'string' ? obj['file'].trim() : '';
+  if (file === '') {
+    throw new WondevError(`${WONDEV_DIR}/${CONFIG_FILE}: "index.file" is required.`);
+  }
+  // Same guard as target paths: this string comes from a file in the repository and ends up
+  // being written to.
+  if (!isInsideRoot(file)) {
+    throw new WondevError(
+      `${WONDEV_DIR}/${CONFIG_FILE}: "index.file" must be a relative path inside the project (got "${file}").`,
+    );
+  }
+
+  const out: IndexConfig = { file, columns: [] };
+
+  const budget = obj['budget'];
+  if (budget !== undefined && budget !== null) {
+    if (typeof budget !== 'number' || !Number.isInteger(budget) || budget <= 0) {
+      throw new WondevError(
+        `${WONDEV_DIR}/${CONFIG_FILE}: "index.budget" must be a positive integer.`,
+      );
+    }
+    out.budget = budget;
+  }
+
+  const columns = obj['columns'];
+  if (columns !== undefined && columns !== null) {
+    if (!Array.isArray(columns)) {
+      throw new WondevError(`${WONDEV_DIR}/${CONFIG_FILE}: "index.columns" must be a list.`);
+    }
+    for (const raw of columns) {
+      const c = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>;
+      const key = typeof c['key'] === 'string' ? c['key'].trim() : '';
+      const label = typeof c['label'] === 'string' ? c['label'].trim() : '';
+      if (key === '' || label === '') {
+        throw new WondevError(
+          `${WONDEV_DIR}/${CONFIG_FILE}: each entry in "index.columns" needs a "key" and a "label".`,
+        );
+      }
+      out.columns.push({ key, label });
+    }
+  }
+
+  return out;
 }
 
 /**

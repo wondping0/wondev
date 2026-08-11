@@ -1,6 +1,8 @@
 import type { NamedTarget, Project, RenderedFile } from '../model.js';
+import type { IndexConfig } from '../config.js';
 import { WondevError } from '../../util/errors.js';
 import { isInsideRoot } from '../../util/paths.js';
+import { renderIndex } from './index-doc.js';
 import { renderClaude } from './claude.js';
 import { renderRuleDir } from './rule-dir.js';
 import { renderSingleFile } from './single-file.js';
@@ -50,8 +52,15 @@ export interface RenderResult {
   owners: Map<string, string>;
 }
 
+/** The owner name recorded for the memory index, which belongs to no target. */
+export const INDEX_OWNER = 'index';
+
 /** Render every enabled target, and fail loudly if two targets claim the same file. */
-export function renderAll(project: Project, targets: NamedTarget[]): RenderResult {
+export function renderAll(
+  project: Project,
+  targets: NamedTarget[],
+  index?: IndexConfig,
+): RenderResult {
   const byPath = new Map<string, { file: RenderedFile; target: string }>();
 
   // Every `single-file` target renders the same flattened document. A typical project
@@ -72,6 +81,24 @@ export function renderAll(project: Project, targets: NamedTarget[]): RenderResul
       }
       if (!existing) byPath.set(file.path, { file, target: named.name });
     }
+  }
+
+  // The index is not a target: it describes the project rather than serving any one agent.
+  // Appending it here means planWrites, the manifest, drift detection in `check` and the
+  // region-stripping in `clean` all handle it without knowing it is different.
+  if (index) {
+    const file = renderIndex(project, index);
+    if (!isInsideRoot(file.path)) {
+      throw new WondevError(`index.file tried to write outside the project: ${file.path}`);
+    }
+    const clash = byPath.get(file.path);
+    if (clash) {
+      throw new WondevError(
+        `index.file "${file.path}" is already written by target "${clash.target}".`,
+        'Point `index.file` at a path no target owns.',
+      );
+    }
+    byPath.set(file.path, { file, target: INDEX_OWNER });
   }
 
   const entries = [...byPath.values()].sort((a, b) => a.file.path.localeCompare(b.file.path));

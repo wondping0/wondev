@@ -112,3 +112,52 @@ describe('resolveTargets', () => {
     expect(targets[0]?.target).toEqual({ engine: 'single-file', path: 'CUSTOM.md', mode: 'whole' });
   });
 });
+
+describe('index configuration', () => {
+  const base = 'name: demo\ntargets:\n  - claude\n';
+  const load = async (yaml: string) => {
+    await write(root, '.wondev/wondev.yaml', base + yaml);
+    return loadConfig(root);
+  };
+
+  it('is absent when the block is omitted', async () => {
+    const config = await load('');
+    expect(config.index).toBeUndefined();
+  });
+
+  it('reads file, budget, and columns', async () => {
+    const config = await load(
+      'index:\n  file: docs/Index.md\n  budget: 8000\n  columns:\n    - key: owner\n      label: Owner\n',
+    );
+    expect(config.index).toEqual({
+      file: 'docs/Index.md',
+      budget: 8000,
+      columns: [{ key: 'owner', label: 'Owner' }],
+    });
+  });
+
+  it('defaults columns to an empty list so consumers need no null check', async () => {
+    const config = await load('index:\n  file: docs/Index.md\n');
+    expect(config.index?.columns).toEqual([]);
+    expect(config.index?.budget).toBeUndefined();
+  });
+
+  it('requires a file', async () => {
+    await expect(load('index:\n  budget: 10\n')).rejects.toThrow(/"index\.file" is required/);
+  });
+
+  it('refuses a path outside the project', async () => {
+    await expect(load('index:\n  file: ../escape.md\n')).rejects.toThrow(/inside the project/);
+  });
+
+  it('refuses a budget that is not a positive integer', async () => {
+    await expect(load('index:\n  file: a.md\n  budget: -1\n')).rejects.toThrow(/positive integer/);
+    await expect(load('index:\n  file: a.md\n  budget: 1.5\n')).rejects.toThrow(/positive integer/);
+  });
+
+  it('refuses a column missing key or label', async () => {
+    await expect(load('index:\n  file: a.md\n  columns:\n    - key: owner\n')).rejects.toThrow(
+      /needs a "key" and a "label"/,
+    );
+  });
+});

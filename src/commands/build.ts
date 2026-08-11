@@ -1,5 +1,5 @@
 import type { NamedTarget } from '../core/model.js';
-import { renderAll } from '../core/render/index.js';
+import { INDEX_OWNER, renderAll } from '../core/render/index.js';
 import { deprecationNotice } from '../core/registry.js';
 import { hasErrors } from '../core/source.js';
 import {
@@ -27,7 +27,7 @@ export async function runBuild(root: string, options: BuildOptions = {}): Promis
 
   const targets = options.target ? selectTarget(ctx, options.target) : ctx.targets;
   if (!options.quiet) warnDeprecated(targets);
-  const { files, owners } = renderAll(ctx.project, targets);
+  const { files, owners } = renderAll(ctx.project, targets, ctx.config.index);
   const manifest = await loadManifest(root);
   const plan = await planWrites(root, files, owners, manifest);
 
@@ -41,8 +41,11 @@ export async function runBuild(root: string, options: BuildOptions = {}): Promis
     return;
   }
 
-  // Only a full build may retire another target's files. See applyPlan.
-  const builtTargets = options.target ? new Set(targets.map((t) => t.name)) : undefined;
+  // Only a full build may retire another target's files. See applyPlan. The index is
+  // rendered whatever the narrowing, so it counts as built.
+  const builtTargets = options.target
+    ? new Set([...targets.map((t) => t.name), INDEX_OWNER])
+    : undefined;
   const { written, removed } = await applyPlan(root, plan, manifest, builtTargets);
 
   if (!options.quiet) {

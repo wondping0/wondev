@@ -1,4 +1,6 @@
 import { renderAll } from '../core/render/index.js';
+import { alwaysOnTokens, docTokens } from '../core/render/index-doc.js';
+import { formatTokens } from '../util/tokens.js';
 import { loadManifest, planWrites } from '../core/writer.js';
 import { WondevError } from '../util/errors.js';
 import { error, info, style, success, warn } from '../util/log.js';
@@ -29,7 +31,7 @@ export async function runCheck(root: string): Promise<void> {
     throw new WondevError(`${errors} error(s) in .wondev/.`);
   }
 
-  const { files, owners } = renderAll(ctx.project, ctx.targets);
+  const { files, owners } = renderAll(ctx.project, ctx.targets, ctx.config.index);
   const manifest = await loadManifest(root);
   const plan = await planWrites(root, files, owners, manifest);
 
@@ -68,6 +70,24 @@ export async function runCheck(root: string): Promise<void> {
         ? 'Run `wondev build --force` to overwrite, or move the hand edits into .wondev/ first.'
         : 'Run `wondev build` to regenerate them.',
     );
+  }
+
+  // Only when a budget was asked for. Enforcing a default would turn this into a failure
+  // every project inherits on upgrade, which is precisely what docs/versioning.md forbids.
+  const budget = ctx.config.index?.budget;
+  if (budget !== undefined) {
+    const used = alwaysOnTokens(ctx.project);
+    if (used > budget) {
+      const largest = ctx.project.memory
+        .filter((d) => d.always)
+        .sort((a, b) => docTokens(b) - docTokens(a))
+        .slice(0, 3)
+        .map((d) => `  ${d.slug} — ≈${formatTokens(docTokens(d))}`);
+      throw new WondevError(
+        `Always-on context is ≈${formatTokens(used)}, over the ${formatTokens(budget)} budget.\nLargest contributors:\n${largest.join('\n')}`,
+        'Set `always: false` on documents that do not belong in every prompt, or raise `index.budget`.',
+      );
+    }
   }
 
   const counts = `${ctx.project.memory.length} memory, ${ctx.project.skills.length} skills, ${ctx.project.commands.length} commands`;
