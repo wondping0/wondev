@@ -81,6 +81,15 @@ jobs:
       # The failure is echoed as a workflow ::error:: because job logs need authentication to
       # read, while check-run annotations do not -- without this, a failed release says only
       # "exit code 1" to anyone who cannot sign in.
+      # Emitted as a ::warning:: so it lands in the check-run annotations, which are readable
+      # without authentication. Trusted publishing needs all three of these to line up, and
+      # ENEEDAUTH alone does not say which one is wrong.
+      - name: Report the publish preconditions
+        run: |
+          if [ -n "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ]; then oidc=available; else oidc=MISSING; fi
+          npmrc="${NPM_CONFIG_USERCONFIG:-$HOME/.npmrc}"
+          echo "::warning::node=$(node -v) npm=$(npm -v) oidc=$oidc registry=$(npm config get registry) npmrc=[$(tr '\n' ';' < "$npmrc" 2>/dev/null)]"
+
       - name: Publish
         run: |
           set -o pipefail
