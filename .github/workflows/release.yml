@@ -25,8 +25,13 @@ jobs:
           registry-url: https://registry.npmjs.org
           cache: npm
 
+      # 11.5.1 is the floor for trusted publishing, and 11.x accepts any Node >= 22.9, so it
+      # matches the pin above. Deliberately not `npm@latest`: npm 12 requires Node
+      # ^22.22.2 || ^24.15.0 || >=26, so `latest` drifted past this runner and failed the
+      # release on an engine check before a single test ran. A release workflow must not
+      # depend on a floating tag -- the failure arrives on the day you are trying to ship.
       - name: Use an npm new enough for trusted publishing
-        run: npm install -g npm@latest
+        run: npm install -g "npm@^11.5.1"
 
       - run: npm ci
 
