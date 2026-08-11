@@ -21,15 +21,17 @@ jobs:
       # NODE_AUTH_TOKEN that defeats OIDC the same way an empty secret does.
       - uses: actions/setup-node@v7
         with:
-          node-version: "22.22.2"
+          node-version: "22.14"
           registry-url: https://registry.npmjs.org
           cache: npm
 
-      # Node is pinned to 22.22.2 because that is the floor npm 12 accepts in the 22 line,
-      # which keeps this runner on the same major the CI matrix tests while allowing the
-      # newest npm. An earlier pin of 22.14 made `npm@latest` fail an engine check outright.
+      # 11.5.1 is the floor for trusted publishing, and 11.x accepts any Node >= 22.9, so it
+      # matches the pin above. Deliberately not `npm@latest`: npm 12 requires Node
+      # ^22.22.2 || ^24.15.0 || >=26, so `latest` drifted past this runner and failed the
+      # release on an engine check before a single test ran. A release workflow must not
+      # depend on a floating tag -- the failure arrives on the day you are trying to ship.
       - name: Use an npm new enough for trusted publishing
-        run: npm install -g npm@latest
+        run: npm install -g "npm@^11.5.1"
 
       # setup-node's registry-url writes `//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}`
       # into .npmrc whether or not a token exists. npm treats the mere presence of that line
