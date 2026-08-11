@@ -95,6 +95,16 @@ function renderConfig(name: string, targets: string[]): string {
     '#     my-agent:',
     '#       engine: single-file      # or rule-dir',
     '#       path: .myagent/context.md',
+    '#',
+    '# A memory index states what each memory document costs to load and when it is worth',
+    '# loading, so an agent reads the two documents it needs instead of all of them. wondev',
+    '# writes the table into a managed region; prose you put around it is left alone.',
+    '#',
+    '#   index:',
+    '#     file: docs/memory-index.md',
+    '#     budget: 8000             # fail `wondev check` if always-on context exceeds this',
+    '#     columns:                 # extra columns, read from your own frontmatter keys',
+    '#       - { key: owner, label: Owner }',
     '',
   ].join('\n');
 

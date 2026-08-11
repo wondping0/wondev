@@ -11,6 +11,47 @@ a patch, because it makes `wondev check` fail in every project that upgrades.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-08-11
+
+Generated output changes, so `wondev check` will report drift until you run `wondev build`
+and commit the result. See below for exactly what moves.
+
+### Added
+
+- **Memory index.** Set `index.file` in `wondev.yaml` and wondev writes a table of every
+  memory document with its estimated token cost and its "when to read" trigger, split into
+  always-loaded and on-demand. It is written into a managed region, so prose around it
+  survives. Nothing about the table is hand-maintained, so it cannot fall out of date.
+
+- **Context budget.** Set `index.budget` and `wondev check` fails when always-on context
+  exceeds it, naming the three largest contributors. There is no default: enforcement
+  happens only where it was asked for.
+
+- **Skill attachments.** Any `.md` file beside `SKILL.md` is carried with the skill. The
+  `claude` target copies them; flat targets like `AGENTS.md` name their paths instead of
+  inlining them, so occasional reference material is not paid for on every turn.
+  Non-markdown files warn and are skipped.
+
+- **Freshness fields.** `verified` (a `YYYY-MM-DD` date) and `verifiedAgainst` (what it was
+  reconciled with) on memory documents. The date drives a ✓ in the index. Documents with no
+  `verified` are reported by `check` as warnings, never errors.
+
+- **Frontmatter passthrough.** Keys wondev does not interpret are preserved instead of
+  discarded, and can be surfaced as extra index columns via `index.columns`. They are never
+  injected into a target's own frontmatter.
+
+### Changed
+
+- Skills with attachments gain a `**Reference material**` block on every flat target. This
+  is the output change referred to above; projects with no attachments see no difference.
+- `flatSlug` now collapses whitespace as well as path separators, so a memory document named
+  `Live Map.md` no longer produces a generated filename containing a space.
+
+### Notes
+
+`SOURCE_SCHEMA_VERSION` stays at 1. Every addition here is optional, so a project written
+for 0.1.x parses unchanged and no migration is needed.
+
 ## [0.1.2] - 2026-08-11
 
 0.1.1 was prepared and tagged locally but never published; its change is included here.

@@ -130,6 +130,94 @@ description: Use when investigating a bug or failing test, before proposing a fi
 
 **Commands** — repeatable prompts a person invokes by name, like `/review`.
 
+### Reference material a skill does not carry
+
+Any `.md` file beside `SKILL.md` becomes an attachment:
+
+```
+.wondev/skills/graphify/
+├── SKILL.md
+└── references/
+    ├── query.md
+    └── rebuild.md
+```
+
+Claude Code gets the files copied across, where it loads them only when the skill points at
+them. Flat targets like `AGENTS.md` get the *paths* instead — never the contents. That is
+the point of keeping them separate: `AGENTS.md` already carries every skill body, and it is
+read on every single turn, so material that is needed occasionally must not be paid for
+constantly. The paths are real, so an agent that wants a reference can open it.
+
+Attachments must be markdown. Anything else warns and is skipped, because every generated
+file gets an HTML comment header that would corrupt other formats.
+
+## The memory index
+
+A dozen memory documents is a library; a dozen an agent loads indiscriminately is a bill.
+The index gives it a way to choose — what each document costs, and when it is worth reading:
+
+```yaml
+# .wondev/wondev.yaml
+index:
+  file: docs/memory-index.md
+  budget: 8000
+```
+
+```markdown
+## Always loaded
+
+| Note | ≈tok | Checked | When to read |
+| ---- | ---- | ------- | ------------ |
+| [[architecture]] | 0.6k | ✓ 2026-08-10 | |
+
+**Always-on total: ≈0.6k** (budget 8.0k)
+
+## On demand
+
+| Note | ≈tok | Checked | When to read |
+| ---- | ---- | ------- | ------------ |
+| [[decisions/0001-single-process]] | 0.3k | | Asking why the architecture is shaped this way. |
+```
+
+The table is written into a **managed region**, so prose you put around it — how to use the
+vault, house rules, anything else that belongs at the entry point — survives every build.
+You never edit the table, so it can never fall out of date with the documents it describes.
+
+`≈tok` is an estimate (four characters per token), meant for comparing documents rather than
+for accounting.
+
+**Freshness.** Two optional frontmatter fields record whether a document has been reconciled
+with reality:
+
+```markdown
+---
+title: Architecture
+verified: 2026-08-10
+verifiedAgainst: ports and arrows in docker-compose.yml
+---
+```
+
+The date produces the ✓. `verifiedAgainst` is the part that matters to a reader deciding
+whether to trust the numbers inside — "someone looked at this" and "someone checked it
+against the compose file" are different claims. Documents with no `verified` are reported by
+`check` as warnings, never errors.
+
+**Budget.** Set `index.budget` and `wondev check` fails when always-on context exceeds it,
+naming the largest contributors. There is deliberately **no default**: a default would fail
+CI in every project that upgraded into it.
+
+Unknown frontmatter keys are preserved and can be given their own index columns:
+
+```yaml
+index:
+  file: docs/memory-index.md
+  columns:
+    - { key: owner, label: Owner }
+```
+
+They are never written into a target's own frontmatter — those files are parsed by other
+people's tools.
+
 ## Supported agents
 
 Run `wondev targets` for the current list.
