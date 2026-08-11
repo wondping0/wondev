@@ -55,5 +55,18 @@ jobs:
       # is exactly what a missing NPM_TOKEN secret expands to -- npm reads it as "auth is
       # already configured", never starts the OIDC exchange, and fails with ENEEDAUTH.
       # Leaving the variable unset is what makes trusted publishing engage.
+      # No --provenance flag: under trusted publishing npm generates and attaches the
+      # attestation itself, and passing the flag as well asks it to do the same work through
+      # the pre-OIDC path. The flag is still required when publishing with a token, so it
+      # comes back if this workflow ever falls back to NPM_TOKEN.
+      #
+      # The failure is echoed as a workflow ::error:: because job logs need authentication to
+      # read, while check-run annotations do not -- without this, a failed release says only
+      # "exit code 1" to anyone who cannot sign in.
       - name: Publish
-        run: npm publish --provenance --access public
+        run: |
+          set -o pipefail
+          if ! npm publish --access public 2>&1 | tee publish.log; then
+            echo "::error::npm publish failed -- $(grep -iE '^npm (error|ERR!)' publish.log | head -12 | tr '\n' ' / ')"
+            exit 1
+          fi
