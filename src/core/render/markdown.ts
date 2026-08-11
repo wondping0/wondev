@@ -22,6 +22,25 @@ export function escapeHtml(text: string): string {
 }
 
 /**
+ * Whether a link target is safe to put in an `href`.
+ *
+ * Escaping stops a URL breaking *out* of the attribute; it does nothing about what the URL
+ * does when followed. `[click](javascript:alert(1))` escaped perfectly well and still
+ * produced a working `javascript:` link in a page built from repository content, which the
+ * threat model treats as untrusted.
+ *
+ * An allowlist rather than a blocklist: `javascript:` is the obvious one, `data:` and `vbs:`
+ * are the ones a blocklist forgets. Anything unrecognised renders as plain text, so the link
+ * is visible but inert.
+ */
+export function isSafeHref(href: string): boolean {
+  const trimmed = href.trim();
+  // Relative paths and same-page anchors carry no scheme and are always fine.
+  if (/^[#./]/.test(trimmed) || !/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(trimmed)) return true;
+  return /^(https?|mailto|ftp):/i.test(trimmed);
+}
+
+/**
  * Inline spans, applied to already-escaped text.
  *
  * Code spans are lifted out before anything else runs and restored last. Replacing them in
@@ -41,8 +60,8 @@ function inline(text: string): string {
 
   const marked = withPlaceholders
     .replace(/\[\[([^\]]+)\]\]/g, (_m, t: string) => `<span class="wikilink">${t}</span>`)
-    .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_m, label: string, href: string) =>
-      `<a href="${href}">${label}</a>`)
+    .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (whole, label: string, href: string) =>
+      isSafeHref(href) ? `<a href="${href}">${label}</a>` : whole)
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
     .replace(/(^|[^*])\*([^*]+)\*/g, '$1<em>$2</em>');
 

@@ -11,6 +11,23 @@ a patch, because it makes `wondev check` fail in every project that upgrades.
 
 ## [Unreleased]
 
+## [0.9.11] - 2026-08-11
+
+### Security
+
+- **The HTML guide rendered `javascript:` links as clickable links.** Escaping stops a URL
+  breaking out of its attribute; it does nothing about what the URL does when followed, and
+  `[click](javascript:alert(1))` in a memory document produced a working link in a page
+  built from repository content — which the threat model treats as untrusted.
+
+  Link targets are now checked against an allowlist (`http`, `https`, `mailto`, `ftp`, plus
+  relative paths and anchors). Anything else renders as plain text: visible, inert. An
+  allowlist rather than a blocklist, because `javascript:` is the one people remember and
+  `data:` and `vbscript:` are the ones they forget.
+
+  Probed alongside `<script>`, `<img onerror>`, `<svg onload>`, `<iframe>`, and attribute
+  break-out, all of which were already handled correctly.
+
 ## [0.9.10] - 2026-08-11
 
 ### Security

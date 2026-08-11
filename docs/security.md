@@ -54,6 +54,20 @@ removed an entire directory tree recursively. Both reported success. Fixed in 0.
 The reason it matters beyond a typo: wondev exists to be used by agents, and an agent
 constructing a command from repository content is the ordinary case, not an exotic one.
 
+### The HTML guide cannot be made to execute
+
+`wondev build` can produce a page opened in a browser, from content the threat model calls
+untrusted. Everything is escaped before any markup is produced, so a document containing
+HTML is displayed rather than run.
+
+Escaping alone was not enough for links. A `javascript:` target escaped perfectly and still
+produced a working link; link schemes are now allowlisted and anything else renders as inert
+text. Fixed in 0.9.11.
+
+The page also loads nothing — no script `src`, `<link>`, `@import`, or `url()` — so opening
+it makes no network request. The one script it carries is inline, and the page works with it
+blocked.
+
 ### Reads stay inside the project too
 
 `wondev adopt --vault <dir>` copies what it reads into `.wondev/`, which is committed. A

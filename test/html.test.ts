@@ -55,6 +55,23 @@ describe('markdownToHtml', () => {
     expect(markdownToHtml('see [[other-doc]]')).toContain('<span class="wikilink">other-doc</span>');
   });
 
+  it('refuses a link scheme that executes, and leaves it visible as text', () => {
+    // Escaping stops a URL breaking out of the attribute; it does nothing about what the
+    // URL does when followed. This produced a working javascript: link until 0.9.11.
+    for (const scheme of ['javascript:alert(1)', 'data:text/html,<b>x', 'vbscript:msgbox']) {
+      const out = markdownToHtml('[click](' + scheme + ')');
+      expect(out).not.toContain('<a href=');
+      expect(out).toContain('click');
+    }
+  });
+
+  it('keeps the schemes a document legitimately uses', () => {
+    expect(markdownToHtml('[a](https://example.com)')).toContain('<a href="https://example.com">');
+    expect(markdownToHtml('[a](./docs/x.md)')).toContain('<a href="./docs/x.md">');
+    expect(markdownToHtml('[a](#anchor)')).toContain('<a href="#anchor">');
+    expect(markdownToHtml('[a](mailto:x@y.z)')).toContain('<a href="mailto:x@y.z">');
+  });
+
   it('escapes quotes so an attribute cannot be broken out of', () => {
     expect(escapeHtml('" onload="x')).toBe('&quot; onload=&quot;x');
   });
