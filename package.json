@@ -1,6 +1,6 @@
 {
   "name": "wondev",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Write your AI agent knowledge once. Compile it to every agent's config format.",
   "keywords": [
     "ai",
