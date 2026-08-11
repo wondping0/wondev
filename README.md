@@ -140,6 +140,12 @@ description: Use when investigating a bug or failing test, before proposing a fi
 
 **Commands** — repeatable prompts a person invokes by name, like `/review`.
 
+> [!TIP]
+> Skills are also how you teach an agent to use a **tool** — a code-graph indexer, a linter
+> with custom rules, a browser driver. What to write down, and which tools are worth the
+> trouble, is in [docs/tooling.md](docs/tooling.md). wondev ships no tool-specific skills by
+> default, on purpose.
+
 **Agents** — subagents that run with their own context window. As with skills, the
 `description` is the *dispatch rule*: it is what the calling agent matches against when
 deciding whether to hand a task off.
@@ -464,6 +470,7 @@ Requires Node 20+. Works on Windows, macOS, and Linux.
 
 | Document | What it covers |
 | -------- | -------------- |
+| [docs/tooling.md](docs/tooling.md) | Giving an agent tools — the pattern, and what is worth having |
 | [docs/security.md](docs/security.md) | Threat model, enforced boundaries, residual risks |
 | [docs/versioning.md](docs/versioning.md) | What MAJOR, MINOR, and PATCH mean here |
 | [docs/releasing.md](docs/releasing.md) | Cutting a release, and the schema-bump checklist |

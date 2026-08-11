@@ -11,6 +11,22 @@ a patch, because it makes `wondev check` fail in every project that upgrades.
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-08-11
+
+### Added
+
+- [docs/tooling.md](docs/tooling.md) — how to teach an agent to use a tool, and which tools
+  are worth the trouble. Covers the three things a tool skill must state (the trigger, the
+  exact commands, and the limits), where long reference material goes, and a shortlist
+  grouped by problem rather than by product: structural code queries, fast search, rules
+  expressed as lint checks, verification that proves rather than asserts, and MCP for
+  systems the agent cannot otherwise reach.
+
+  Also records why the starter pack ships no tool-specific skills, and why wondev does not
+  manage `settings.json`, hooks, or MCP configuration.
+
+Generated output is byte-identical to 0.6.0.
+
 ## [0.6.0] - 2026-08-11
 
 ### Added
