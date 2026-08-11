@@ -68,28 +68,27 @@ jobs:
             exit 1
           fi
 
-      # No NODE_AUTH_TOKEN here, deliberately. setup-node's registry-url writes
-      # _authToken=${NODE_AUTH_TOKEN} into .npmrc; if that variable is set but empty -- which
-      # is exactly what a missing NPM_TOKEN secret expands to -- npm reads it as "auth is
-      # already configured", never starts the OIDC exchange, and fails with ENEEDAUTH.
-      # Leaving the variable unset is what makes trusted publishing engage.
-      # No --provenance flag: under trusted publishing npm generates and attaches the
-      # attestation itself, and passing the flag as well asks it to do the same work through
-      # the pre-OIDC path. The flag is still required when publishing with a token, so it
-      # comes back if this workflow ever falls back to NPM_TOKEN.
+      # Both of the steps below write to check-run annotations rather than the job log,
+      # because annotations are readable without authentication and job logs are not. A
+      # failed release otherwise reports "Process completed with exit code 1" and nothing
+      # else to anyone who cannot sign in to this repository.
       #
-      # The failure is echoed as a workflow ::error:: because job logs need authentication to
-      # read, while check-run annotations do not -- without this, a failed release says only
-      # "exit code 1" to anyone who cannot sign in.
-      # Emitted as a ::warning:: so it lands in the check-run annotations, which are readable
-      # without authentication. Trusted publishing needs all three of these to line up, and
-      # ENEEDAUTH alone does not say which one is wrong.
+      # Trusted publishing needs three things true at once and ENEEDAUTH names none of them,
+      # so they are printed explicitly: npm past 11.5.1, an OIDC request URL from the
+      # id-token permission, and an .npmrc carrying no auth line.
       - name: Report the publish preconditions
         run: |
           if [ -n "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ]; then oidc=available; else oidc=MISSING; fi
           npmrc="${NPM_CONFIG_USERCONFIG:-$HOME/.npmrc}"
           echo "::warning::node=$(node -v) npm=$(npm -v) oidc=$oidc registry=$(npm config get registry) npmrc=[$(tr '\n' ';' < "$npmrc" 2>/dev/null)]"
 
+      # Deliberately no NODE_AUTH_TOKEN and no --provenance.
+      #
+      # An empty NODE_AUTH_TOKEN -- which is what a missing NPM_TOKEN secret expands to --
+      # reads to npm as "auth is already configured" and stops it ever trying OIDC. And under
+      # trusted publishing npm attaches the provenance attestation itself, so the flag only
+      # asks for the same work through the pre-OIDC path. Both come back together if this
+      # workflow is ever switched to token auth; neither works half-applied.
       - name: Publish
         run: |
           set -o pipefail
