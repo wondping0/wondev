@@ -199,7 +199,14 @@ async function loadSkills(dir: string, issues: Issue[]): Promise<Skill[]> {
       });
     }
 
-    const skill: Skill = { name, description, attachments, body, sourcePath };
+    const skill: Skill = {
+      name,
+      description,
+      inline: asBoolean(data['inline']) ?? false,
+      attachments,
+      body,
+      sourcePath,
+    };
     const globs = asStringArray(data['globs']);
     if (globs) skill.globs = globs;
     skills.push(skill);

@@ -64,3 +64,35 @@ Follow the surrounding code. A few conventions worth stating:
 
 Say what changed, why, and how you verified it — with the command output, not a summary.
 Small and focused beats large and comprehensive.
+
+## Reviewing target paths
+
+Every built-in target writes to a path some other vendor controls, and vendors move them.
+Windsurf's documentation already shows `.devin/` taking precedence over `.windsurf/`.
+
+This is the only failure mode wondev has no symptom for. When an agent moves its config
+location, wondev keeps writing the old path, `build` reports success, `check` stays green,
+and the file is simply never read again. Everything looks like it worked.
+
+There is no way to detect this automatically — wondev cannot know a path it was never told
+about. So it is a review task, and the registry records when each one was last done:
+
+```ts
+// src/core/registry.ts
+cursor: {
+  target: { engine: 'rule-dir', path: '.cursor/rules', ext: '.mdc' },
+  pathVerified: '2026-08-11',   // checked against Cursor's own documentation on this date
+  ...
+}
+```
+
+`wondev targets --verbose` shows these, including how many have never been checked, so the
+gap is visible rather than assumed away.
+
+**When reviewing:** open the vendor's current documentation, confirm the path and file
+extension, then set `pathVerified` to today. If the path moved, add a `deprecated` record
+pointing at the replacement rather than editing the old one away — projects still have files
+at the old location, and `wondev migrate` is what moves them.
+
+Do not set `pathVerified` because the tests pass. The tests check wondev's own behaviour;
+they cannot check what a vendor decided last month.

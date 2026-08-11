@@ -140,6 +140,23 @@ export function onDemandMemoryIndex(docs: MemoryDoc[]): string {
     .join('\n');
 }
 
+/**
+ * One line per skill that is not inlined: where it is, what it costs, and when to follow it.
+ *
+ * Attachments are counted rather than listed. A skill with seven reference files should say
+ * so — that is a signal about its depth — without spending seven lines saying it here.
+ */
+export function onDemandSkillIndex(skills: Skill[]): string {
+  return skills
+    .map((skill) => {
+      const cost = formatTokens(estimateTokens(skill.body));
+      const n = skill.attachments.length;
+      const extra = n > 0 ? `, +${n} reference file${n === 1 ? '' : 's'}` : '';
+      return `- \`${skill.sourcePath}\` — **${skill.name}** (≈${cost}${extra}) — ${skill.description}`;
+    })
+    .join('\n');
+}
+
 const ON_DEMAND_PREAMBLE =
   'Listed, not included. Read one when its trigger matches — the path is relative to the repository root.';
 
@@ -174,12 +191,27 @@ export function flattenProject(project: Project): string {
     out.push(onDemandMemoryIndex(onDemand));
   }
 
-  if (project.skills.length > 0) {
+  // Same rule as memory, one level up. A skill body is a procedure that applies when its
+  // trigger matches; copying every one of them into a file read on every turn charges for
+  // all of them to be useful occasionally. Measured on a real project: 95% of AGENTS.md was
+  // skill bodies. `inline: true` opts the short universal ones back in.
+  const inlineSkills = project.skills.filter((s) => s.inline);
+  const listedSkills = project.skills.filter((s) => !s.inline);
+
+  if (inlineSkills.length > 0) {
     out.push('# Skills');
     out.push(
       'Each skill below is a procedure. Follow it when its "when to use" condition matches the task at hand.',
     );
-    for (const skill of project.skills) out.push(skillSection(skill));
+    for (const skill of inlineSkills) out.push(skillSection(skill));
+  }
+
+  if (listedSkills.length > 0) {
+    out.push('# On-demand skills');
+    out.push(
+      'Procedures kept out of this file. When a trigger below matches, read that file before acting.',
+    );
+    out.push(onDemandSkillIndex(listedSkills));
   }
 
   if (project.commands.length > 0) {

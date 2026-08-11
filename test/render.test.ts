@@ -30,6 +30,7 @@ const project: Project = {
     {
       name: 'debugging',
       description: 'Use when investigating a failure',
+      inline: true,
       attachments: [],
       body: 'Reproduce first.',
       sourcePath: '.wondev/skills/debugging/SKILL.md',
@@ -247,6 +248,7 @@ describe('skill attachments', () => {
       {
         name: 'graphify',
         description: 'Use when querying the code graph',
+        inline: true,
         attachments: [
           { relPath: 'references/query.md', content: '# Query\n\nRun graphify query.' },
         ],
@@ -398,5 +400,53 @@ describe('subagents', () => {
 
   it('adds no subagent section when the project defines none', () => {
     expect(flattenProject(project)).not.toContain('# Subagents');
+  });
+});
+
+describe('skill bodies follow the same rule as memory', () => {
+  const mixed: Project = {
+    name: 'demo',
+    memory: [], commands: [], agents: [],
+    skills: [
+      {
+        name: 'small', description: 'Always relevant', inline: true, attachments: [],
+        body: 'INLINED BODY.', sourcePath: '.wondev/skills/small/SKILL.md',
+      },
+      {
+        name: 'graphify', description: 'Use when asking structural questions', inline: false,
+        attachments: [{ relPath: 'references/a.md', content: 'x' }],
+        body: 'LARGE BODY: '.padEnd(4000, 'x'), sourcePath: '.wondev/skills/graphify/SKILL.md',
+      },
+    ],
+  };
+
+  it('inlines only the skills that ask for it', () => {
+    const out = flattenProject(mixed);
+    expect(out).toContain('INLINED BODY.');
+    expect(out).not.toContain('LARGE BODY');
+  });
+
+  it('references the rest with cost, trigger, and attachment count', () => {
+    const out = flattenProject(mixed);
+    expect(out).toContain('# On-demand skills');
+    expect(out).toContain('`.wondev/skills/graphify/SKILL.md`');
+    expect(out).toContain('≈1.0k');
+    expect(out).toContain('(≈1.0k, +1 reference file)');
+    expect(out).toContain('Use when asking structural questions');
+  });
+
+  it('omits each section when it would be empty', () => {
+    const noneInline: Project = { ...mixed, skills: [mixed.skills[1]!] };
+    expect(flattenProject(noneInline)).not.toContain('\n# Skills\n');
+    const allInline: Project = { ...mixed, skills: [mixed.skills[0]!] };
+    expect(flattenProject(allInline)).not.toContain('On-demand skills');
+  });
+
+  it('leaves the claude engine alone, which never inlined skill bodies anyway', () => {
+    const files = renderTarget(mixed, named('claude'));
+    expect(files.some((f) => f.path === '.claude/skills/graphify/SKILL.md')).toBe(true);
+    const memory = files.find((f) => f.path === 'CLAUDE.md')!.content;
+    expect(memory).not.toContain('LARGE BODY');
+    expect(memory).toContain('**graphify**');
   });
 });

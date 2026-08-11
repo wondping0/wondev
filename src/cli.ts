@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { BUILTIN_TARGETS, TARGET_ALIASES, targetsAddedSince } from './core/registry.js';
 import { isWondevError, WondevError } from './util/errors.js';
 import { readFileIfExists } from './util/fs.js';
-import { error, info, setColor, style } from './util/log.js';
+import { error, info, setColor, style, warn } from './util/log.js';
 
 const HELP = `
 ${style.bold('wondev')} — write your AI agent knowledge once, compile it for every agent.
@@ -38,6 +38,7 @@ ${style.bold('Options')}
   --restore                upgrade: re-add starter files you deleted
   --no-new                 upgrade: skip templates that are new in this release
   --new                    targets: only those added since you initialised
+  --verbose                targets: also show when each output path was last verified
   --vault <dir>            adopt: also take a markdown directory in as memory
   --online                 doctor: also ask npm whether a newer wondev exists
   --no-color               Disable coloured output
@@ -69,7 +70,7 @@ async function readVersion(): Promise<string> {
   }
 }
 
-async function listTargets(root: string, onlyNew: boolean): Promise<void> {
+async function listTargets(root: string, onlyNew: boolean, verbose = false): Promise<void> {
   let since: string | undefined;
   if (onlyNew) {
     // Needs the stamp written at init; without it there is no baseline to compare against.
@@ -104,6 +105,32 @@ async function listTargets(root: string, onlyNew: boolean): Promise<void> {
     info(`  ${style.cyan(name.padEnd(width))}  ${style.dim(output)}${flag}`);
     if (entry.readBy.length > 1) {
       info(`  ${' '.repeat(width)}  ${style.dim(`read by ${entry.readBy.join(', ')}`)}`);
+    }
+    if (verbose) {
+      const when = entry.pathVerified
+        ? `path verified ${entry.pathVerified}`
+        : 'path never verified against vendor docs';
+      info(`  ${' '.repeat(width)}  ${style.dim(`added ${entry.addedIn} · ${when}`)}`);
+    }
+  }
+
+  if (verbose && !since) {
+    const unverified = names.filter((n) => !BUILTIN_TARGETS[n]?.pathVerified).length;
+    if (unverified > 0) {
+      info('');
+      warn(
+        `${unverified} of ${names.length} target paths have never been re-checked against the ` +
+          'vendor documentation.',
+      );
+      info(
+        style.dim(
+          [
+            '  An agent that moves its config location is the one failure with no symptom:',
+            '  wondev keeps writing the old path and every command still reports success.',
+            '  See CONTRIBUTING.md for how these are reviewed.',
+          ].join('\n'),
+        ),
+      );
     }
   }
 
@@ -141,6 +168,7 @@ async function main(argv: string[]): Promise<number> {
       new: { type: 'boolean' },
       online: { type: 'boolean' },
       vault: { type: 'string' },
+      verbose: { type: 'boolean' },
     },
   });
 
@@ -246,7 +274,7 @@ async function main(argv: string[]): Promise<number> {
     }
 
     case 'targets':
-      await listTargets(root, values.new === true);
+      await listTargets(root, values.new === true, values.verbose === true);
       return 0;
 
     case 'help':

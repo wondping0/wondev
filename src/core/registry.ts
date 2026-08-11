@@ -10,6 +10,21 @@ export interface RegistryEntry {
   /** Other tools that consume this same output file. Purely informational. */
   readBy: string[];
   /**
+   * When a maintainer last checked this target's output path against the vendor's own
+   * documentation, ISO `YYYY-MM-DD`.
+   *
+   * This exists because of the one failure mode wondev has no symptom for. Agents move their
+   * config locations -- Windsurf's documentation already shows `.devin/` taking precedence
+   * over `.windsurf/` -- and when that happens wondev keeps writing to the old path and
+   * every command still reports success. Nothing fails. The files are simply never read
+   * again.
+   *
+   * Absent means never verified since the entry was written, which is the honest state for
+   * most of them. `wondev targets --verbose` shows it, so a user can see how current
+   * wondev's knowledge actually is rather than assuming it is current.
+   */
+  pathVerified?: string;
+  /**
    * Set when an agent moves or retires its config location. Nothing is removed without one
    * MINOR release carrying this warning first.
    */

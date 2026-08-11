@@ -27,6 +27,7 @@ Listed, not included. Read one when its trigger matches.
 
 # Available skills
 
+- **always-on** — Use for the short universal rules an agent should never open a file to read
 - **example-skill** — Use when the fixture needs a skill with globs attached
 
 # Available commands

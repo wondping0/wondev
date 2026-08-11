@@ -11,6 +11,37 @@ a patch, because it makes `wondev check` fail in every project that upgrades.
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-08-11
+
+Generated output changes substantially again, in the same direction as 0.3.0. Run
+`wondev build` and commit the result.
+
+### Changed
+
+- **Skill bodies are no longer inlined into flattened targets by default.** 0.3.0 fixed this
+  for memory and missed skills, which turned out to be the larger half: measured on a real
+  project, **95% of `AGENTS.md` was skill bodies** — 10,262 tokens of 10,751, from a single
+  skill.
+
+  Each non-inlined skill now gets one line: path, estimated cost, attachment count, and its
+  trigger. Set `inline: true` on a skill to keep its body in the file, for the short
+  universal ones an agent should never have to open a file to follow.
+
+  Same project after this change: `AGENTS.md` fell from 10.7k tokens to **630**. Across
+  0.3.0 and 0.7.0 together, from 66.4k.
+
+  `rule-dir` and `claude` targets are unaffected — neither ever inlined skill bodies.
+
+### Added
+
+- `pathVerified` on registry entries, and `wondev targets --verbose` to show it.
+
+  Every built-in target writes to a path a vendor controls, and vendors move them. That is
+  the one failure wondev has no symptom for: the old path keeps being written, every command
+  reports success, and the file is never read again. There is no way to detect it
+  automatically, so it is a review task — and the dates are now recorded, visible, and
+  honestly absent where nobody has checked. `CONTRIBUTING.md` documents the review.
+
 ## [0.6.1] - 2026-08-11
 
 ### Added

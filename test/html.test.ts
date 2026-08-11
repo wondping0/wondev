@@ -79,7 +79,7 @@ describe('html engine', () => {
     ],
     skills: [
       {
-        name: 'debugging', description: 'Use when investigating a failure',
+        name: 'debugging', description: 'Use when investigating a failure', inline: false,
         attachments: [{ relPath: 'references/deep.md', content: '# deep' }],
         body: 'Reproduce first.', sourcePath: '.wondev/skills/debugging/SKILL.md',
       },

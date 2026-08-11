@@ -33,18 +33,17 @@ Listed, not included. Read one when its trigger matches — the path is relative
 
 Each skill below is a procedure. Follow it when its "when to use" condition matches the task at hand.
 
-## Skill: example-skill
+## Skill: always-on
 
-**When to use:** Use when the fixture needs a skill with globs attached
+**When to use:** Use for the short universal rules an agent should never open a file to read
 
-**Applies to:** `src/**/*.ts`, `test/**/*.ts`
+Short enough that referencing it would cost more than carrying it.
 
-1. Do the first thing.
-2. Verify it worked.
-3. Only then do the second thing.
+# On-demand skills
 
-**Reference material** — read on demand, not included here:
-- `.wondev/skills/example-skill/references/deep-dive.md`
+Procedures kept out of this file. When a trigger below matches, read that file before acting.
+
+- `.wondev/skills/example-skill/SKILL.md` — **example-skill** (≈24, +1 reference file) — Use when the fixture needs a skill with globs attached
 
 # Commands
 

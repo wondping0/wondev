@@ -145,3 +145,26 @@ describe('doctor', () => {
     }
   });
 });
+
+describe('target path freshness', () => {
+  it('records a well-formed date when a path has been verified', () => {
+    for (const [name, entry] of Object.entries(BUILTIN_TARGETS)) {
+      if (entry.pathVerified === undefined) continue;
+      expect(entry.pathVerified, `${name}`).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(
+        Number.isNaN(Date.parse(entry.pathVerified)),
+        `${name} has an unparseable date`,
+      ).toBe(false);
+    }
+  });
+
+  it('never claims a target was verified in the future', () => {
+    // A date ahead of today means someone stamped it without looking, which is worse than
+    // leaving it absent: it converts "unknown" into a false assurance.
+    const today = new Date().toISOString().slice(0, 10);
+    for (const [name, entry] of Object.entries(BUILTIN_TARGETS)) {
+      if (entry.pathVerified === undefined) continue;
+      expect(entry.pathVerified <= today, `${name} is stamped in the future`).toBe(true);
+    }
+  });
+});

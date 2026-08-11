@@ -130,6 +130,11 @@ Handlers live in `src/routes/` and never contain business logic.
 **Skills** — procedures. The `description` is the *trigger*: it is what an agent matches
 against when deciding whether to load the skill.
 
+Skill bodies follow the same rule as memory. By default they are **referenced** in flattened
+targets — path, cost, trigger, attachment count — and the agent opens the file when the
+trigger matches. Set `inline: true` for the short universal ones it should never have to
+open a file to follow. On a real project this took `AGENTS.md` from 10.7k tokens to 630.
+
 ```markdown
 ---
 name: debugging

@@ -49,6 +49,15 @@ export interface Skill {
   name: string;
   description: string;
   globs?: string[];
+  /**
+   * Copy the body into flattened targets instead of referencing it.
+   *
+   * Defaults to false, for the same reason on-demand memory is not inlined: a flattened
+   * target is read on every turn, and a procedure that applies occasionally should not be
+   * paid for continuously. Set it for the short, universal skills an agent should never
+   * have to open a file to follow.
+   */
+  inline: boolean;
   /** Sorted by `relPath`. Empty for the flat `skills/<name>.md` form, which has no directory. */
   attachments: Attachment[];
   body: string;
