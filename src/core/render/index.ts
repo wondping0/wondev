@@ -4,6 +4,7 @@ import { WondevError } from '../../util/errors.js';
 import { isInsideRoot } from '../../util/paths.js';
 import { renderIndex } from './index-doc.js';
 import { renderClaude } from './claude.js';
+import { renderHtml } from './html.js';
 import { renderRuleDir } from './rule-dir.js';
 import { renderSingleFile } from './single-file.js';
 import { flattenProject } from './shared.js';
@@ -29,6 +30,9 @@ export function renderTarget(
       break;
     case 'claude':
       files = renderClaude(project, target);
+      break;
+    case 'html':
+      files = renderHtml(project, target);
       break;
     default: {
       const exhaustive: never = target;

@@ -72,9 +72,16 @@ function normalizeHeadings(body: string, shallowest = 3): string {
     .join('\n');
 }
 
-/** Strip a redundant title, then re-level what remains. */
-function sectionBody(body: string, title: string): string {
-  return normalizeHeadings(stripDuplicateTitle(body, title));
+/**
+ * Strip a redundant title, then re-level what remains.
+ *
+ * `shallowest` is the heading level the body's own top level becomes. Markdown engines wrap
+ * a body under `## Title` and pass 3; the HTML guide wraps it under `<h3>` and passes 4.
+ * Getting it wrong inverts the hierarchy -- a document opening with `# Architecture` renders
+ * above the heading that introduces it.
+ */
+export function sectionBody(body: string, title: string, shallowest = 3): string {
+  return normalizeHeadings(stripDuplicateTitle(body, title), shallowest);
 }
 
 export function memorySection(doc: MemoryDoc): string {

@@ -137,7 +137,14 @@ export interface ClaudeTarget {
   agents?: string;
 }
 
-export type Target = SingleFileTarget | RuleDirTarget | ClaudeTarget;
+/** A self-contained HTML guide, rendered for people rather than for an agent. */
+export interface HtmlTarget {
+  engine: 'html';
+  /** Output path relative to project root. */
+  path: string;
+}
+
+export type Target = SingleFileTarget | RuleDirTarget | ClaudeTarget | HtmlTarget;
 
 /** A target plus the registry key it was looked up under. */
 export interface NamedTarget {

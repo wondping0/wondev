@@ -11,6 +11,29 @@ a patch, because it makes `wondev check` fail in every project that upgrades.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-08-11
+
+### Added
+
+- **An HTML guide target.** Enable `guide` and wondev writes `GUIDE.html`: one
+  self-contained page covering every artifact type, with sidebar navigation, per-document
+  token cost, and freshness stamps. No scripts, fonts, stylesheets, or external requests,
+  so it works from `file://` and cannot phone anywhere when opened.
+
+  Markdown is converted at build time by a small built-in renderer rather than a
+  dependency. Fenced blocks stay fenced — a Mermaid diagram renders as labelled code, not a
+  drawing.
+
+  Also available as `engine: html` for custom targets.
+
+- **Starter pack additions.** `wondev init` now ships an example subagent and a
+  context-discipline memory document, so a new project inherits the shape rather than
+  discovering it. Deliberately not shipped: a skill for any specific third-party tool.
+
+### Fixed
+
+- `wondev init` and `wondev check` printed "1 agents".
+
 ## [0.4.0] - 2026-08-11
 
 ### Added

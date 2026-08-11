@@ -293,10 +293,12 @@ export function validateTarget(name: string, raw: unknown): Target {
       if (obj['agents'] !== undefined) claude.agents = requirePath('agents');
       return claude;
     }
+    case 'html':
+      return { engine: 'html', path: requirePath('path') };
     default:
       throw new WondevError(
         `customTargets.${name}: unknown engine "${String(engine)}".`,
-        'Valid engines: single-file, rule-dir, claude.',
+        'Valid engines: single-file, rule-dir, claude, html.',
       );
   }
 }

@@ -29,6 +29,16 @@ export interface RegistryEntry {
  * how wondev supports agents that do not exist yet.
  */
 export const BUILTIN_TARGETS: Record<string, RegistryEntry> = {
+  guide: {
+    label: 'HTML project guide',
+    addedIn: '0.5.0',
+    readBy: ['people'],
+    target: {
+      engine: 'html',
+      path: 'GUIDE.html',
+    },
+  },
+
   claude: {
     label: 'Claude Code',
     addedIn: '0.1.0',

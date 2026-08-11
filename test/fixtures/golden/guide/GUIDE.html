@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>fixture-project — project guide</title>
+<style>
+:root{--bg:#fbfaf8;--fg:#1c1b19;--muted:#6b6862;--line:#e2ded7;--accent:#8a5a2b;--code:#f2efe9}
+@media (prefers-color-scheme:dark){:root{--bg:#16151a;--fg:#e8e6e1;--muted:#9b968d;--line:#2c2a31;--accent:#d9a05b;--code:#201f26}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.65 ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif}
+.wrap{display:grid;grid-template-columns:minmax(200px,260px) minmax(0,1fr);gap:2.5rem;max-width:1180px;margin:0 auto;padding:2rem 1.25rem}
+nav{position:sticky;top:2rem;align-self:start;max-height:calc(100vh - 4rem);overflow:auto}
+nav h2{font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin:1.4rem 0 .4rem}
+nav a{display:block;padding:.2rem 0;color:var(--fg);text-decoration:none;font-size:.9rem;border-left:2px solid transparent;padding-left:.6rem}
+nav a:hover{color:var(--accent);border-left-color:var(--accent)}
+header.top{border-bottom:1px solid var(--line);padding-bottom:1rem;margin-bottom:1.5rem}
+header.top h1{margin:0;font-size:1.7rem;letter-spacing:-.01em}
+header.top p{margin:.35rem 0 0;color:var(--muted);font-size:.9rem}
+section{border-top:1px solid var(--line);padding-top:1.6rem;margin-top:2rem}
+section:first-of-type{border-top:0;margin-top:0}
+section>h3{margin:0;font-size:1.22rem}
+.meta{color:var(--muted);font-size:.82rem;margin:.3rem 0 1rem}
+.group{font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;color:var(--accent);margin-top:2.5rem}
+code{background:var(--code);padding:.12em .35em;border-radius:3px;font-size:.88em;font-family:ui-monospace,SFMono-Regular,Consolas,monospace}
+pre{background:var(--code);padding:.9rem 1rem;border-radius:6px;overflow-x:auto}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;display:block;overflow-x:auto;font-size:.9rem}
+th,td{border:1px solid var(--line);padding:.4rem .6rem;text-align:left;vertical-align:top}
+blockquote{margin:1rem 0;padding:.1rem 1rem;border-left:3px solid var(--line);color:var(--muted)}
+.wikilink{color:var(--accent)}
+.attachments{color:var(--muted);font-size:.88rem}
+footer{border-top:1px solid var(--line);margin-top:3rem;padding-top:1rem;color:var(--muted);font-size:.82rem}
+@media (max-width:760px){.wrap{grid-template-columns:1fr}nav{position:static;max-height:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav><h2>Always loaded</h2><a href="#memory-architecture">Architecture</a><a href="#memory-conventions">Conventions</a><h2>On demand</h2><a href="#memory-decisions-0001-single-process">0001 — Stay a single process</a><h2>Skills</h2><a href="#skill-example-skill">example-skill</a><h2>Subagents</h2><a href="#agent-example-agent">example-agent</a><h2>Commands</h2><a href="#command-example-command">/example-command</a></nav>
+<main>
+<header class="top"><h1>fixture-project</h1><p>Generated from <code>.wondev/</code>. Always-on context: ≈102 tokens.</p></header>
+<p class="group">Always loaded</p><section id="memory-architecture"><h3>Architecture</h3><p class="meta">≈67 · never verified · How the fixture system is put together</p><p>The service is one process with three layers: transport, domain, and storage.</p>
+<p>Transport never touches storage directly. That rule is the whole point of the split, and breaking it is the most common mistake in this codebase.</p>
+<p>See also: <span class="wikilink">conventions</span>.</p></section><section id="memory-conventions"><h3>Conventions</h3><p class="meta">≈35 · never verified</p><p>Tests live beside the code they cover, named <code>*.test.ts</code>.</p>
+<p>Errors that a caller can reasonably handle are returned; everything else throws.</p></section><p class="group">On demand</p><section id="memory-decisions-0001-single-process"><h3>0001 — Stay a single process</h3><p class="meta">≈74 · never verified</p><p><strong>Status:</strong> accepted</p>
+<h4>Context</h4>
+<p>Splitting into services was proposed to allow independent scaling.</p>
+<h4>Decision</h4>
+<p>Stay a single process until a measured bottleneck justifies otherwise.</p>
+<h4>Consequences</h4>
+<p>Deployment stays trivial. Scaling is vertical only, which is acceptable at current volume.</p></section><p class="group">Skills</p><section id="skill-example-skill"><h3>example-skill</h3><p class="meta">≈24 · Use when the fixture needs a skill with globs attached</p><ol><li>Do the first thing.</li><li>Verify it worked.</li><li>Only then do the second thing.</li></ol><p class="attachments">Reference material: <code>references/deep-dive.md</code></p></section><p class="group">Subagents</p><section id="agent-example-agent"><h3>example-agent</h3><p class="meta">≈38 · model sonnet · Delegate when a change touches more than three services and the blast radius needs checking first</p><ol><li>Map which services the change reaches.</li><li>Report the ones with no test covering the path.</li><li>Return the list, not the file contents.</li></ol></section><p class="group">Commands</p><section id="command-example-command"><h3>/example-command</h3><p class="meta">≈16 · A repeatable prompt used by the golden output tests</p><p>Summarise what changed and why, then stop.</p></section>
+<footer>Generated by wondev. Edit <code>.wondev/</code> and run <code>wondev build</code>.</footer>
+</main>
+</div>
+</body>
+</html>

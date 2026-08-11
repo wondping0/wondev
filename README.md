@@ -245,6 +245,25 @@ index:
 They are never written into a target's own frontmatter — those files are parsed by other
 people's tools.
 
+## A guide for people, from the same source
+
+`.wondev/` describes the project to whoever maintains it, not only to agents. Enable the
+`guide` target and wondev renders it as a single self-contained page:
+
+```yaml
+targets:
+  - claude
+  - guide          # writes GUIDE.html
+```
+
+Sidebar navigation, every artifact type, per-document token cost, and freshness stamps.
+No scripts, no fonts, no stylesheet, no external requests of any kind — it opens from
+`file://`, survives being emailed, and can be served read-only from a container.
+
+Markdown is converted at build time by a small built-in renderer, so there is still no
+runtime dependency beyond `yaml`. Fenced blocks stay fenced: a Mermaid diagram is shown as
+labelled code rather than drawn, which is honest about what a dependency-free page can do.
+
 ## Supported agents
 
 Run `wondev targets` for the current list.
