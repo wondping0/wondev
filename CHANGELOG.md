@@ -11,6 +11,44 @@ a patch, because it makes `wondev check` fail in every project that upgrades.
 
 ## [Unreleased]
 
+## [0.9.9] - 2026-08-11
+
+The pre-1.0 cleanup. **Breaking for library consumers**; the CLI is unaffected.
+
+### Removed
+
+- The writer internals (`planWrites`, `applyPlan`, `cleanAll`, `loadManifest`, `Manifest`,
+  `PlanItem`), the template bookkeeping (`recordTemplates`, `templatesDir`,
+  `loadTemplateManifest`), the semver helpers, and the migration registry are no longer
+  exported.
+
+  They were exported because they existed, not because their shapes were designed to be
+  built on — `applyPlan` had already gained a parameter in 0.1.2, which would have been a
+  breaking change had anyone depended on it. What remains is the format (types, loaders,
+  pure render functions) and the `run*` commands the CLI itself calls. Call those instead;
+  they do the bookkeeping correctly, including the parts that are easy to get wrong.
+
+### Added
+
+- **The migration engine is now exercised end to end**, against synthetic schema versions.
+  `MIGRATIONS` is empty because schema 1 is the only shape that has existed, which meant
+  every path through the engine was unreachable — the first real schema bump would have been
+  the first time any of it ran, on the day it mattered, against someone's authored files.
+  Nine tests now cover multi-step chains, a broken chain, a failure mid-chain, the refusal
+  that sends a user to `wondev migrate`, and that `stampConfig` does not destroy the comments
+  around the key it rewrites.
+
+- **A filter box in the generated HTML guide.** Inline script, no fetch, and the page works
+  without it: with the script blocked the input is inert and every section is still present
+  and linked.
+
+### Fixed
+
+- The guide's "no external requests" test asserted that no URL appeared anywhere, which
+  passed only because the fixture contained none. It now checks the constructs that actually
+  cause a request — `src`, `<link>`, `@import`, `url()` — and separately asserts the only
+  script is inline.
+
 ## [0.9.0] - 2026-08-11
 
 ### Added

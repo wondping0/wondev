@@ -104,10 +104,24 @@ describe('html engine', () => {
     expect(file.content.trimEnd().endsWith('</html>')).toBe(true);
   });
 
-  it('makes no external requests, so it works from file:// and cannot phone home', () => {
-    expect(file.content).not.toMatch(/<script\b/i);
-    expect(file.content).not.toMatch(/https?:\/\//);
+  it('loads no external resources, so it works from file:// and cannot phone home', () => {
+    // Checks the constructs that actually cause a request, not the mere presence of a URL:
+    // a document may legitimately contain a link, and an href fetches nothing until someone
+    // clicks it. Asserting "no URL anywhere" passed only because the fixture had none.
     expect(file.content).not.toMatch(/<link\b/i);
+    expect(file.content).not.toMatch(/\bsrc\s*=/i);
+    expect(file.content).not.toMatch(/@import/i);
+    expect(file.content).not.toMatch(/url\(/i);
+  });
+
+  it('carries a filter the page still works without', () => {
+    expect(file.content).toContain('id="q"');
+    // Inline only — a script with a src would break the guarantee above.
+    const scripts = file.content.match(/<script[^>]*>/gi) ?? [];
+    expect(scripts).toHaveLength(1);
+    expect(scripts[0]).toBe('<script>');
+    // Sections are plain markup, so a blocked script costs the filter and nothing else.
+    expect(file.content).toContain('<section id="memory-architecture">');
   });
 
   it('covers every artifact type', () => {

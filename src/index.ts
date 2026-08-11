@@ -4,19 +4,20 @@
  * The CLI is the primary interface, but exposing the pure pieces lets other tools reuse the
  * parser and renderers without shelling out.
  *
- * ## Stability
+ * ## What is here, and what is not
  *
- * Two tiers, and they are not equally safe to build on.
+ * Two things: the **format** — types, loaders, and the pure render functions that turn a
+ * `Project` into files — and the **commands**, which are what the CLI itself calls.
  *
- * **Stable** — the model types, `loadConfig`, `loadProject`, the render functions, the
- * registry, and `WondevError`. These describe the format and the pure transformation, which
- * is what wondev actually promises.
+ * Removed in 0.9.9, ahead of 1.0: the writer internals (`planWrites`, `applyPlan`,
+ * `cleanAll`, `loadManifest`), the template bookkeeping, the semver helpers, and the
+ * migration registry. They were exported because they existed, not because their shapes
+ * were designed to be built on — `applyPlan` had already gained a parameter in 0.1.2, which
+ * would have been a breaking change had anyone been relying on it.
  *
- * **Provisional** — the writer internals (`planWrites`, `applyPlan`, `cleanAll`) and the
- * `run*` command entry points. They are exported because they were useful before there was
- * a considered API, not because their shapes were designed to be depended on. They will be
- * narrowed or removed in 1.0; `applyPlan` already gained a parameter in 0.1.2. Shell out to
- * the CLI rather than calling these if you want something that keeps working.
+ * If you were calling one of those, call the corresponding `run*` command instead: it does
+ * the bookkeeping correctly, including the parts that are easy to get wrong, such as which
+ * files a partial build is allowed to retire.
  */
 export type {
   Attachment,
@@ -59,14 +60,6 @@ export {
   lookupBuiltin,
   resolveAlias,
 } from './core/registry.js';
-export {
-  cleanAll,
-  loadManifest,
-  planWrites,
-  applyPlan,
-  type Manifest,
-  type PlanItem,
-} from './core/writer.js';
 export { WondevError, isWondevError } from './util/errors.js';
 
 export { runInit } from './commands/init.js';
@@ -82,19 +75,6 @@ export { runRemove } from './commands/remove.js';
 export { runList } from './commands/list.js';
 export { runWatch } from './commands/watch.js';
 
-export {
-  loadTemplateManifest,
-  recordTemplates,
-  templatesDir,
-  type TemplateManifest,
-} from './core/templates.js';
-export { compareVersions, isNewerThan } from './util/semver.js';
 
 export { SOURCE_SCHEMA_VERSION, MANIFEST_SCHEMA_VERSION } from './core/schema.js';
-export {
-  MIGRATIONS,
-  pendingMigrations,
-  runMigrations,
-  type Migration,
-} from './core/migrate/index.js';
 export { wondevVersion } from './util/version.js';

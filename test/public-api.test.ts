@@ -32,10 +32,27 @@ describe('public API', () => {
     }
   });
 
-  it('keeps the provisional writer internals reachable until 1.0 removes them', () => {
-    // Documented in src/index.ts as provisional. Asserted so their removal is a deliberate
-    // edit to this test rather than an accident nobody noticed.
-    for (const name of ['planWrites', 'applyPlan', 'cleanAll', 'loadManifest']) {
+  it('no longer exposes the writer internals removed in 0.9.9', () => {
+    // Re-exporting any of these is how the surface grew by accident the first time: they
+    // were exported because they existed. `applyPlan` had already gained a parameter in
+    // 0.1.2, which would have broken anyone depending on it.
+    for (const name of [
+      'planWrites',
+      'applyPlan',
+      'cleanAll',
+      'loadManifest',
+      'recordTemplates',
+      'templatesDir',
+      'compareVersions',
+      'MIGRATIONS',
+      'runMigrations',
+    ]) {
+      expect(api, `${name} is internal and must not be re-exported`).not.toHaveProperty(name);
+    }
+  });
+
+  it('still exposes the commands, which are what the CLI itself calls', () => {
+    for (const name of ['runInit', 'runBuild', 'runCheck', 'runClean', 'runAdopt', 'runRemove']) {
       expect(api, `missing export: ${name}`).toHaveProperty(name);
     }
   });
