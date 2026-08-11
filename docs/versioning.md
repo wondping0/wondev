@@ -1,5 +1,10 @@
 # Versioning contract
 
+**As of 1.0.0 this contract is binding.** The public API in `src/index.ts` and the `.wondev/`
+source format are stable: breaking either requires a MAJOR release. Before 1.0 they moved
+freely, and the 0.9.9 release deliberately narrowed the API surface so that what remains is
+what wondev is willing to keep.
+
 wondev writes files into other people's repositories. Those files get committed, reviewed,
 and checked in CI. That makes the version contract unusually strict: a change that looks
 cosmetic here becomes a diff in someone else's pull request.

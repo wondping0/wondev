@@ -157,6 +157,15 @@ export interface ClaudeTarget {
   commands: string;
   /** Where subagents go. Optional so a custom claude target written before 0.4 still loads. */
   agents?: string;
+  /**
+   * Where path-scoped memory goes, as Claude Code's `.claude/rules/`.
+   *
+   * A memory document with `globs` describes part of the codebase, not all of it. Claude Code
+   * loads a rule with `paths:` frontmatter only when it reads a file matching the pattern, so
+   * routing scoped documents here keeps them out of the context of every unrelated task.
+   * Optional, so a custom claude target written before 1.0 keeps working.
+   */
+  rules?: string;
 }
 
 /** A self-contained HTML guide, rendered for people rather than for an agent. */

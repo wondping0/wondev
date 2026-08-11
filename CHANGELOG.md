@@ -11,6 +11,42 @@ a patch, because it makes `wondev check` fail in every project that upgrades.
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-08-11
+
+The API and the source format are now stable. Breaking changes require a MAJOR release from
+here; see [docs/versioning.md](docs/versioning.md).
+
+### Added
+
+- **Path-scoped memory reaches Claude Code.** A memory document with `globs` is now written
+  to `.claude/rules/<slug>.md` with `paths:` frontmatter, and left out of `CLAUDE.md`.
+  Claude Code loads such a rule only when it reads a matching file, so a rule about the API
+  layer costs nothing while you work on the frontend. `globs` existed since 0.1.0 and no
+  target had ever used it.
+
+- **A `devin` target** writing `.devin/rules/`, found by verifying the registry against
+  vendor documentation: Windsurf's docs now redirect to `docs.devin.ai`, which states
+  `.devin/rules/` is the preferred location and `.windsurf/rules/` is "kept as a fallback
+  for backward compatibility".
+
+- **`pathVerified` is populated.** 12 of 14 target paths were checked against their vendor's
+  own documentation on 2026-08-11. `wondev targets --verbose` shows which, and honestly
+  reports the two that were not (`gemini`, `junie` — their documentation would not load).
+
+### Changed
+
+- **`windsurf` is deprecated**, replacing `devin`. It still writes `.windsurf/rules/`, which
+  is still read, and `build` now warns once per run naming the successor. Nothing is removed;
+  per `docs/versioning.md`, removal requires a MAJOR after a MINOR of warning.
+
+- `devin` is no longer an alias for `agents`. It is a target in its own right.
+
+### Notes
+
+Verification also confirmed two things wondev already had right: Claude Code reads
+`CLAUDE.md` and explicitly **not** `AGENTS.md`, and Cursor ignores `.md` files in
+`.cursor/rules` — only `.mdc` — which is what the `cursor` target has always written.
+
 ## [0.9.11] - 2026-08-11
 
 ### Security

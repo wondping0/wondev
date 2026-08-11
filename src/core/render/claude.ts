@@ -1,6 +1,6 @@
-import type { ClaudeTarget, Project, RenderedFile } from '../model.js';
+import type { ClaudeTarget, MemoryDoc, Project, RenderedFile } from '../model.js';
 import { stringifyFrontmatter } from '../frontmatter.js';
-import { memorySection, onDemandMemoryIndex } from './shared.js';
+import { flatSlug, memorySection, onDemandMemoryIndex } from './shared.js';
 
 /**
  * Claude Code's native layout.
@@ -14,7 +14,7 @@ export function renderClaude(project: Project, target: ClaudeTarget): RenderedFi
 
   files.push({
     path: target.memory,
-    content: claudeMemory(project),
+    content: claudeMemory(project, target.rules !== undefined),
     mode: 'region',
   });
 
@@ -61,6 +61,22 @@ export function renderClaude(project: Project, target: ClaudeTarget): RenderedFi
     }
   }
 
+  // Path-scoped memory becomes a rule file. `paths` is Claude Code's own key for this, and
+  // wondev's `globs` maps onto it directly -- a field that until now no target used.
+  if (target.rules) {
+    const rulesDir = target.rules.replace(/\/+$/, '');
+    for (const doc of project.memory) {
+      if (!doc.globs?.length) continue;
+      const data: Record<string, unknown> = { paths: doc.globs };
+      if (doc.description) data['description'] = doc.description;
+      files.push({
+        path: `${rulesDir}/${flatSlug(doc.slug)}.md`,
+        content: stringifyFrontmatter(data, doc.body),
+        mode: 'whole',
+      });
+    }
+  }
+
   const commandsDir = target.commands.replace(/\/+$/, '');
   for (const command of project.commands) {
     files.push({
@@ -73,13 +89,18 @@ export function renderClaude(project: Project, target: ClaudeTarget): RenderedFi
   return files;
 }
 
-function claudeMemory(project: Project): string {
+function claudeMemory(project: Project, hasRulesDir: boolean): string {
   const out: string[] = [`# ${project.name}`];
 
   // CLAUDE.md is read on every turn, so only always-on memory is inlined. The rest is listed
   // with its path and trigger, matching how this engine already treats skills.
-  const always = project.memory.filter((d) => d.always);
-  const onDemand = project.memory.filter((d) => !d.always);
+  //
+  // Documents with `globs` are neither: they go to `.claude/rules/` as path-scoped rules and
+  // are excluded here, because Claude Code loads those only when it reads a matching file.
+  const scoped = (d: MemoryDoc): boolean => hasRulesDir && (d.globs?.length ?? 0) > 0;
+  const unscoped = project.memory.filter((d) => !scoped(d));
+  const always = unscoped.filter((d) => d.always);
+  const onDemand = unscoped.filter((d) => !d.always);
 
   for (const doc of always) out.push(memorySection(doc));
 

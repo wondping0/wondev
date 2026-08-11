@@ -183,9 +183,12 @@ describe('claude engine', () => {
   const files = renderTarget(project, named('claude'));
   const byPath = new Map(files.map((f) => [f.path, f]));
 
-  it('splits across CLAUDE.md, skills, and commands', () => {
+  it('splits across CLAUDE.md, skills, commands, and path-scoped rules', () => {
     expect([...byPath.keys()].sort()).toEqual([
       '.claude/commands/review.md',
+      // `architecture` carries globs, so it becomes a path-scoped rule rather than
+      // sitting in the file loaded on every turn.
+      '.claude/rules/architecture.md',
       '.claude/skills/debugging/SKILL.md',
       'CLAUDE.md',
     ]);
@@ -492,5 +495,60 @@ describe('single-file include', () => {
       memo,
     )[0]!.content;
     expect(out).not.toContain('# Skills');
+  });
+});
+
+describe('path-scoped memory becomes a Claude Code rule', () => {
+  const scoped: Project = {
+    name: 'demo',
+    skills: [], commands: [], agents: [],
+    memory: [
+      {
+        slug: 'api', title: 'API rules', always: true, extra: {},
+        description: 'Working on the API layer.',
+        globs: ['src/api/**/*.ts'],
+        body: 'SCOPED BODY: validate input.',
+        sourcePath: '.wondev/memory/api.md',
+      },
+      {
+        slug: 'architecture', title: 'Architecture', always: true, extra: {},
+        body: 'GLOBAL BODY: one binary.',
+        sourcePath: '.wondev/memory/architecture.md',
+      },
+    ],
+  };
+
+  const files = renderTarget(scoped, named('claude'));
+  const byPath = new Map(files.map((f) => [f.path, f]));
+
+  it('writes a rule file with Claude Code\'s own `paths` key', () => {
+    const rule = byPath.get('.claude/rules/api.md');
+    expect(rule).toBeDefined();
+    expect(rule?.mode).toBe('whole');
+    expect(rule?.content).toContain('paths:');
+    expect(rule?.content).toContain('src/api/**/*.ts');
+    expect(rule?.content).toContain('SCOPED BODY');
+  });
+
+  it('keeps the scoped document out of CLAUDE.md, which loads every turn', () => {
+    const memory = byPath.get('CLAUDE.md')!.content;
+    expect(memory).not.toContain('SCOPED BODY');
+    expect(memory).toContain('GLOBAL BODY');
+  });
+
+  it('leaves unscoped memory exactly where it was', () => {
+    expect([...byPath.keys()].filter((p) => p.startsWith('.claude/rules/'))).toEqual([
+      '.claude/rules/api.md',
+    ]);
+  });
+
+  it('writes no rules for a claude target that names no rules directory', () => {
+    const legacy = renderTarget(scoped, {
+      name: 'legacy',
+      target: { engine: 'claude', memory: 'CLAUDE.md', skills: '.claude/skills', commands: '.claude/commands' },
+    });
+    expect(legacy.some((f) => f.path.includes('/rules/'))).toBe(false);
+    // And the document is not lost: with nowhere scoped to put it, it stays in CLAUDE.md.
+    expect(legacy.find((f) => f.path === 'CLAUDE.md')?.content).toContain('SCOPED BODY');
   });
 });

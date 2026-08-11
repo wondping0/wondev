@@ -135,6 +135,19 @@ always: true
 Handlers live in `src/routes/` and never contain business logic.
 ```
 
+**`globs` scopes a document to part of the codebase.** For Claude Code these become
+`.claude/rules/` files with `paths:` frontmatter, which load only when Claude reads a
+matching file — so a rule about the API layer costs nothing while you work on the frontend.
+Cursor gets the same thing through its own frontmatter.
+
+```markdown
+---
+title: API rules
+globs: ["src/api/**/*.ts"]
+---
+Every endpoint validates its input before touching the domain layer.
+```
+
 **Skills** — procedures. The `description` is the *trigger*: it is what an agent matches
 against when deciding whether to load the skill.
 

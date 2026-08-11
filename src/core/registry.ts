@@ -46,6 +46,8 @@ export interface RegistryEntry {
 export const BUILTIN_TARGETS: Record<string, RegistryEntry> = {
   guide: {
     label: 'HTML project guide',
+    // wondev owns this path; there is no vendor documentation to check it against.
+    pathVerified: '2026-08-11',
     addedIn: '0.5.0',
     readBy: ['people'],
     target: {
@@ -56,6 +58,7 @@ export const BUILTIN_TARGETS: Record<string, RegistryEntry> = {
 
   claude: {
     label: 'Claude Code',
+    pathVerified: '2026-08-11',
     addedIn: '0.1.0',
     readBy: ['Claude Code'],
     target: {
@@ -64,11 +67,13 @@ export const BUILTIN_TARGETS: Record<string, RegistryEntry> = {
       skills: '.claude/skills',
       commands: '.claude/commands',
       agents: '.claude/agents',
+      rules: '.claude/rules',
     },
   },
 
   agents: {
     label: 'AGENTS.md',
+    pathVerified: '2026-08-11',
     addedIn: '0.1.0',
     readBy: [
       'OpenAI Codex',
@@ -93,6 +98,7 @@ export const BUILTIN_TARGETS: Record<string, RegistryEntry> = {
 
   copilot: {
     label: 'GitHub Copilot',
+    pathVerified: '2026-08-11',
     addedIn: '0.1.0',
     readBy: ['GitHub Copilot'],
     target: {
@@ -111,6 +117,7 @@ export const BUILTIN_TARGETS: Record<string, RegistryEntry> = {
 
   aider: {
     label: 'Aider',
+    pathVerified: '2026-08-11',
     addedIn: '0.1.0',
     readBy: ['Aider'],
     target: { engine: 'single-file', path: 'CONVENTIONS.md', mode: 'region' },
@@ -125,6 +132,7 @@ export const BUILTIN_TARGETS: Record<string, RegistryEntry> = {
 
   cursor: {
     label: 'Cursor',
+    pathVerified: '2026-08-11',
     addedIn: '0.1.0',
     readBy: ['Cursor'],
     target: {
@@ -144,11 +152,31 @@ export const BUILTIN_TARGETS: Record<string, RegistryEntry> = {
     label: 'Windsurf',
     addedIn: '0.1.0',
     readBy: ['Windsurf'],
+    pathVerified: '2026-08-11',
     target: { engine: 'rule-dir', path: '.windsurf/rules', ext: '.md' },
+    // Verified 2026-08-11 and found moved: Windsurf's documentation now redirects to
+    // docs.devin.ai, which states `.devin/rules/` is preferred and `.windsurf/rules/` is
+    // "kept as a fallback for backward compatibility". This target keeps writing the
+    // fallback, which is still read, and points at the successor rather than silently
+    // producing files at a path nobody prefers any more.
+    deprecated: {
+      since: '1.0.0',
+      replacedBy: 'devin',
+      note: '.devin/rules/ is now the preferred location; .windsurf/rules/ is read as a fallback.',
+    },
+  },
+
+  devin: {
+    label: 'Devin / Windsurf (Cascade)',
+    addedIn: '1.0.0',
+    readBy: ['Devin', 'Windsurf'],
+    pathVerified: '2026-08-11',
+    target: { engine: 'rule-dir', path: '.devin/rules', ext: '.md' },
   },
 
   cline: {
     label: 'Cline',
+    pathVerified: '2026-08-11',
     addedIn: '0.1.0',
     readBy: ['Cline'],
     target: { engine: 'rule-dir', path: '.clinerules', ext: '.md' },
@@ -156,6 +184,7 @@ export const BUILTIN_TARGETS: Record<string, RegistryEntry> = {
 
   roo: {
     label: 'Roo Code',
+    pathVerified: '2026-08-11',
     addedIn: '0.1.0',
     readBy: ['Roo Code'],
     target: { engine: 'rule-dir', path: '.roo/rules', ext: '.md' },
@@ -163,6 +192,7 @@ export const BUILTIN_TARGETS: Record<string, RegistryEntry> = {
 
   continue: {
     label: 'Continue',
+    pathVerified: '2026-08-11',
     addedIn: '0.1.0',
     readBy: ['Continue'],
     // Continue reads optional YAML frontmatter on rule files; without this map the glob
@@ -181,6 +211,7 @@ export const BUILTIN_TARGETS: Record<string, RegistryEntry> = {
 
   kiro: {
     label: 'Kiro',
+    pathVerified: '2026-08-11',
     addedIn: '0.1.0',
     readBy: ['Kiro'],
     target: { engine: 'rule-dir', path: '.kiro/steering', ext: '.md' },
@@ -200,7 +231,6 @@ export const TARGET_ALIASES: Record<string, string> = {
   goose: 'agents',
   amp: 'agents',
   warp: 'agents',
-  devin: 'agents',
   'agents-md': 'agents',
   'gemini-cli': 'gemini',
   'claude-code': 'claude',

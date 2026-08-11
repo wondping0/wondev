@@ -78,9 +78,26 @@ describe('deprecation', () => {
     expect(notice).not.toContain('Use "');
   });
 
-  it('no built-in target is deprecated in this release', () => {
-    const deprecated = Object.keys(BUILTIN_TARGETS).filter((n) => deprecationNotice(n) !== null);
-    expect(deprecated).toEqual([]);
+  it('every deprecated built-in names a replacement that exists', () => {
+    // This test used to assert that nothing was deprecated, which held only because no
+    // vendor had moved yet. Windsurf's documentation now redirects to docs.devin.ai and
+    // states `.devin/rules/` is preferred, so the assertion that matters is no longer
+    // "none" but "each one points somewhere real".
+    for (const [name, entry] of Object.entries(BUILTIN_TARGETS)) {
+      if (!entry.deprecated) continue;
+      expect(deprecationNotice(name), `${name} should produce a notice`).not.toBeNull();
+      const replacement = entry.deprecated.replacedBy;
+      if (replacement !== undefined) {
+        expect(BUILTIN_TARGETS[replacement], `${name} replaced by unknown "${replacement}"`)
+          .toBeDefined();
+      }
+    }
+  });
+
+  it('warns about windsurf and points at the target that superseded it', () => {
+    const notice = deprecationNotice('windsurf');
+    expect(notice).toContain('windsurf');
+    expect(notice).toContain('devin');
   });
 });
 
