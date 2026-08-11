@@ -30,6 +30,17 @@ export async function ensureDir(dir: string): Promise<void> {
  * leave a half-written config file behind. The temp file is a sibling rather than in the
  * OS temp dir because `rename` is only atomic within a single filesystem.
  */
+/**
+ * Recognise the sibling temp files `writeFileAtomic` creates.
+ *
+ * Exported so a filesystem watcher can ignore wondev's own writes. Keeping the pattern next
+ * to the code that produces it is the point: when the naming changes, both sides move
+ * together instead of a watcher quietly starting to rebuild forever.
+ */
+export function isAtomicWriteTemp(name: string): boolean {
+  return /\.wondev-\d+-[0-9a-f]+\.tmp$/.test(name);
+}
+
 export async function writeFileAtomic(target: string, content: string): Promise<void> {
   await ensureDir(path.dirname(target));
   const tmp = `${target}.wondev-${process.pid}-${crypto.randomBytes(4).toString('hex')}.tmp`;

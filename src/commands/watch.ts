@@ -2,10 +2,14 @@ import fsSync from 'node:fs';
 import path from 'node:path';
 import { wondevDir } from '../core/config.js';
 import { isWondevError } from '../util/errors.js';
+import { isAtomicWriteTemp } from '../util/fs.js';
 import { error, info, style } from '../util/log.js';
 import { runBuild, type BuildOptions } from './build.js';
 
 const DEBOUNCE_MS = 150;
+
+/** Basename of the manifest wondev rewrites on every build, inside the watched directory. */
+const MANIFEST_BASENAME = '.manifest.json';
 
 /**
  * Rebuild on change.
@@ -25,7 +29,28 @@ export async function runWatch(root: string, options: BuildOptions = {}): Promis
   let building = false;
   let queued = false;
 
-  const trigger = (): void => {
+  /**
+   * Ignore wondev's own bookkeeping.
+   *
+   * `.wondev/.manifest.json` is written by every build and lives inside the directory being
+   * watched, so without this a single edit rebuilds forever: build writes the manifest, the
+   * watcher sees it, that rebuild writes it again. The `queued` path below guarantees the
+   * cycle never settles, because an event arriving mid-build always schedules another one.
+   *
+   * Measured before the fix: one edit produced roughly six rebuilds per second indefinitely.
+   */
+  const isSelfInflicted = (filename: string | Buffer | null): boolean => {
+    if (filename === null) return false;
+    const base = path.basename(typeof filename === 'string' ? filename : filename.toString());
+    // The temp file matters as much as the manifest: writes are atomic, so each manifest
+    // save also creates and renames `.manifest.json.wondev-<pid>-<hex>.tmp` beside it.
+    return base === MANIFEST_BASENAME || isAtomicWriteTemp(base);
+  };
+
+  // Both parameters are optional so the queued-rebuild path below can call this directly,
+  // where there is no originating filesystem event to inspect.
+  const trigger = (_event?: string, filename: string | Buffer | null = null): void => {
+    if (isSelfInflicted(filename)) return;
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => {
       void rebuild();
