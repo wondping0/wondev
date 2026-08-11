@@ -3,7 +3,7 @@ import { alwaysOnTokens, docTokens } from '../core/render/index-doc.js';
 import { formatTokens } from '../util/tokens.js';
 import { loadManifest, planWrites } from '../core/writer.js';
 import { WondevError } from '../util/errors.js';
-import { error, info, style, success, warn } from '../util/log.js';
+import { error, info, plural, style, success, warn } from '../util/log.js';
 import { wondevVersion } from '../util/version.js';
 import { loadContext } from './context.js';
 
@@ -97,7 +97,7 @@ export async function runCheck(root: string): Promise<void> {
   ];
   // Only when present, so projects that define none are not told about a feature they are
   // not using every time they run check.
-  if (ctx.project.agents.length > 0) parts.push(`${ctx.project.agents.length} agents`);
+  if (ctx.project.agents.length > 0) parts.push(plural(ctx.project.agents.length, 'agent'));
   const counts = parts.join(', ');
   success(`up to date — ${counts} across ${ctx.targets.length} target(s)`);
   if (warnings > 0) info(style.dim(`${warnings} warning(s)`));

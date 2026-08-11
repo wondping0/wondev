@@ -10,19 +10,29 @@ project. Everything outside it that agents read — `CLAUDE.md`, `AGENTS.md`,
 memory/      durable facts: architecture, conventions, glossary, decisions
 skills/      procedures: how to do a kind of work in this repo
 commands/    repeatable prompts a person invokes by name
+agents/      subagents: specialists that run in their own context window
 wondev.yaml  project name and which agents to generate for
 ```
 
-## The three types
+## The four types
 
 **Memory** is what stays true between tasks. Architecture, conventions, domain vocabulary,
-and the reasoning behind past decisions. Set `always: true` in the frontmatter for the
-handful of documents worth loading into every conversation.
+and the reasoning behind past decisions.
+
+`always: true` is the flag that matters. Documents marked always-on are copied into the
+files an agent reads on every single turn; everything else is listed with its cost and its
+trigger, and opened only when the trigger matches. Mark a document always-on only if it is
+worth paying for in every request.
 
 **Skills** are procedures. Each one has a `description` that states *when to use it* — that
 sentence is what an agent matches against, so write the trigger condition, not a summary.
 
 **Commands** are prompts a person runs deliberately, like `/review`.
+
+**Agents** are specialists you delegate to. Each runs in its own context window and cannot
+see the conversation that dispatched it, so write them to state what they need rather than
+to assume. As with skills, the `description` is the dispatch rule — the condition under
+which handing work over is the right move — not a description of the role.
 
 ## Working here
 

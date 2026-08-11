@@ -8,7 +8,7 @@ import { recordTemplates, templatesDir } from '../core/templates.js';
 import { WondevError } from '../util/errors.js';
 import { wondevVersion } from '../util/version.js';
 import { copyDir, pathExists, writeFileAtomic } from '../util/fs.js';
-import { info, style, success } from '../util/log.js';
+import { info, plural, style, success } from '../util/log.js';
 import { runBuild } from './build.js';
 
 export interface InitOptions {
@@ -44,7 +44,13 @@ export async function runInit(root: string, options: InitOptions = {}): Promise<
   success(`created ${style.cyan(`${WONDEV_DIR}/`)} with the starter pack`);
 
   const counts = await countStarterPack(base);
-  info(style.dim(`  ${counts.skills} skills, ${counts.memory} memory docs, ${counts.commands} commands`));
+  const summary = [
+    `${counts.skills} skills`,
+    `${counts.memory} memory docs`,
+    `${counts.commands} commands`,
+  ];
+  if (counts.agents > 0) summary.push(plural(counts.agents, 'agent'));
+  info(style.dim(`  ${summary.join(', ')}`));
   info(style.dim(`  targets: ${targets.join(', ')}`));
 
   if (!options.skipBuild) {
@@ -120,7 +126,9 @@ function renderConfig(name: string, targets: string[]): string {
   return `${header}${body}\n# Written by wondev. Used to detect when \`wondev migrate\` is needed.\n${stamp}`;
 }
 
-async function countStarterPack(base: string): Promise<{ skills: number; memory: number; commands: number }> {
+async function countStarterPack(
+  base: string,
+): Promise<{ skills: number; memory: number; commands: number; agents: number }> {
   const count = async (dir: string, deep = false): Promise<number> => {
     try {
       const entries = await fs.readdir(path.join(base, dir), { withFileTypes: true, recursive: deep });
@@ -133,5 +141,6 @@ async function countStarterPack(base: string): Promise<{ skills: number; memory:
     skills: await count('skills'),
     memory: await count('memory', true),
     commands: await count('commands'),
+    agents: await count('agents'),
   };
 }

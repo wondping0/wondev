@@ -45,3 +45,8 @@ export function error(msg: string): void {
 export function step(msg: string): void {
   process.stdout.write(`${style.dim('-')} ${msg}\n`);
 }
+
+/** `1 agent`, `2 agents`. Small, but "1 agents" in every summary line reads as a bug. */
+export function plural(n: number, singular: string, suffix = 's'): string {
+  return `${n} ${singular}${n === 1 ? '' : suffix}`;
+}
