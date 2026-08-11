@@ -163,3 +163,36 @@ describe('skill attachments', () => {
     expect(project.skills[0]?.attachments).toEqual([]);
   });
 });
+
+describe('agents', () => {
+  it('reads name, description, tools, and model', async () => {
+    await write(
+      root,
+      '.wondev/agents/reviewer.md',
+      '---\nname: reviewer\ndescription: Delegate when a diff needs a second pair of eyes\ntools:\n  - Read\n  - Grep\nmodel: sonnet\n---\n\nRead the diff.\n',
+    );
+    const { project, issues } = await loadProject(root, 'demo');
+    expect(hasErrors(issues)).toBe(false);
+    expect(project.agents[0]?.name).toBe('reviewer');
+    expect(project.agents[0]?.tools).toEqual(['Read', 'Grep']);
+    expect(project.agents[0]?.model).toBe('sonnet');
+  });
+
+  it('requires a description, because it is the dispatch rule', async () => {
+    await write(root, '.wondev/agents/a.md', '---\nname: a\n---\n\nbody\n');
+    const { issues } = await loadProject(root, 'demo');
+    expect(issues.some((i) => i.level === 'error' && /description/.test(i.message))).toBe(true);
+  });
+
+  it('rejects a name that is not kebab-case', async () => {
+    await write(root, '.wondev/agents/b.md', '---\nname: Not Kebab\ndescription: d\n---\n\nbody\n');
+    const { issues } = await loadProject(root, 'demo');
+    expect(issues.some((i) => i.level === 'error' && /kebab-case/.test(i.message))).toBe(true);
+  });
+
+  it('is an empty list when the directory does not exist', async () => {
+    await seedProject(root);
+    const { project } = await loadProject(root, 'demo');
+    expect(project.agents).toEqual([]);
+  });
+});

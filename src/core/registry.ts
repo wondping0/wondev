@@ -38,6 +38,7 @@ export const BUILTIN_TARGETS: Record<string, RegistryEntry> = {
       memory: 'CLAUDE.md',
       skills: '.claude/skills',
       commands: '.claude/commands',
+      agents: '.claude/agents',
     },
   },
 

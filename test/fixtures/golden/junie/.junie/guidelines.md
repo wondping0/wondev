@@ -55,3 +55,9 @@ Repeatable prompts a user may invoke by name.
 **Purpose:** A repeatable prompt used by the golden output tests
 
 Summarise what changed and why, then stop.
+
+# Subagents
+
+Specialists this project defines. Hosts that support delegation load them from the paths below.
+
+- `.wondev/agents/example-agent.md` — **example-agent** — Delegate when a change touches more than three services and the blast radius needs checking first

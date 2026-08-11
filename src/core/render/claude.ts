@@ -41,6 +41,26 @@ export function renderClaude(project: Project, target: ClaudeTarget): RenderedFi
     }
   }
 
+  // Only when the target names a location. A custom claude target written before agents
+  // existed has no `agents` path, and inventing one would write into a directory its author
+  // never asked wondev to own.
+  if (target.agents) {
+    const agentsDir = target.agents.replace(/\/+$/, '');
+    for (const agent of project.agents) {
+      const data: Record<string, unknown> = {
+        name: agent.name,
+        description: agent.description,
+      };
+      if (agent.tools?.length) data['tools'] = agent.tools.join(', ');
+      if (agent.model) data['model'] = agent.model;
+      files.push({
+        path: `${agentsDir}/${agent.name}.md`,
+        content: stringifyFrontmatter(data, agent.body),
+        mode: 'whole',
+      });
+    }
+  }
+
   const commandsDir = target.commands.replace(/\/+$/, '');
   for (const command of project.commands) {
     files.push({
@@ -84,6 +104,13 @@ function claudeMemory(project: Project): string {
     out.push(
       project.commands.map((c) => `- **/${c.name}** — ${c.description}`).join('\n'),
     );
+  }
+
+  // Same reasoning as skills: the description is the dispatch rule, and the host loads the
+  // agent itself once it decides to delegate.
+  if (project.agents.length > 0) {
+    out.push('# Available subagents');
+    out.push(project.agents.map((a) => `- **${a.name}** — ${a.description}`).join('\n'));
   }
 
   return `${out.join('\n\n').trim()}\n`;

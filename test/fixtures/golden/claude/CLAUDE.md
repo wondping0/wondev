@@ -32,3 +32,7 @@ Listed, not included. Read one when its trigger matches.
 # Available commands
 
 - **/example-command** — A repeatable prompt used by the golden output tests
+
+# Available subagents
+
+- **example-agent** — Delegate when a change touches more than three services and the blast radius needs checking first

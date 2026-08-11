@@ -56,6 +56,7 @@ describe('public API', () => {
         ],
         skills: [],
         commands: [],
+        agents: [],
       },
       { file: 'Index.md', columns: [] },
     );

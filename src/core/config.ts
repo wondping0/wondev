@@ -2,6 +2,7 @@ import path from 'node:path';
 import { parse as parseYaml, parseDocument } from 'yaml';
 import { SOURCE_SCHEMA_VERSION } from './schema.js';
 import type {
+  ClaudeTarget,
   NamedTarget,
   RuleDirFrontmatterMap,
   RuleDirTarget,
@@ -280,13 +281,18 @@ export function validateTarget(name: string, raw: unknown): Target {
       }
       return target;
     }
-    case 'claude':
-      return {
+    case 'claude': {
+      const claude: ClaudeTarget = {
         engine: 'claude',
         memory: requirePath('memory'),
         skills: requirePath('skills'),
         commands: requirePath('commands'),
       };
+      // Optional: a claude target defined before subagents existed stays valid, and simply
+      // produces no agent files.
+      if (obj['agents'] !== undefined) claude.agents = requirePath('agents');
+      return claude;
+    }
     default:
       throw new WondevError(
         `customTargets.${name}: unknown engine "${String(engine)}".`,

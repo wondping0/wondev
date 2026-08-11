@@ -17,7 +17,8 @@ ${style.bold('Commands')}
   init                     Scaffold .wondev/ with the starter pack, then build
   build                    Compile .wondev/ into every enabled target
   watch                    Rebuild whenever .wondev/ changes
-  add <type> <name>        Add a skill, memory, or command  (type: skill|memory|command)
+  add <type> <name>        Add a skill, memory, command, or agent
+                           (type: skill|memory|command|agent)
   check                    Validate sources and detect drift  (exit 1 on failure)
   clean                    Remove generated files listed in the manifest
   migrate                  Bring an older .wondev/ up to the current source schema
@@ -188,7 +189,7 @@ async function main(argv: string[]): Promise<number> {
       const name = positionals[2];
       if (!kind || !name) {
         throw new WondevError(
-          'Usage: wondev add <skill|memory|command> <name>',
+          'Usage: wondev add <skill|memory|command|agent> <name>',
         );
       }
       const { runAdd, parseKind } = await import('./commands/add.js');

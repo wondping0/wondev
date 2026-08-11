@@ -43,6 +43,7 @@ const project: Project = {
       sourcePath: '.wondev/commands/review.md',
     },
   ],
+  agents: [],
 };
 
 function named(name: string): NamedTarget {
@@ -254,6 +255,7 @@ describe('skill attachments', () => {
       },
     ],
     commands: [],
+    agents: [],
   };
 
   it('writes attachments beside SKILL.md for the claude engine', () => {
@@ -306,7 +308,7 @@ describe('on-demand memory is referenced, not inlined', () => {
         sourcePath: '.wondev/memory/hardening.md',
       },
     ],
-    skills: [], commands: [],
+    skills: [], commands: [], agents: [],
   };
 
   it('inlines always-on memory and only references the rest', () => {
@@ -341,5 +343,60 @@ describe('on-demand memory is referenced, not inlined', () => {
   it('omits the section entirely when every document is always-on', () => {
     const allAlways: Project = { ...mixed, memory: [mixed.memory[0]!] };
     expect(flattenProject(allAlways)).not.toContain('On-demand memory');
+  });
+});
+
+describe('subagents', () => {
+  const withAgent: Project = {
+    name: 'demo',
+    memory: [], skills: [], commands: [],
+    agents: [
+      {
+        name: 'blast-radius',
+        description: 'Delegate when a change touches more than three services',
+        tools: ['Read', 'Grep'],
+        model: 'sonnet',
+        body: 'AGENT BODY: map the reach.',
+        sourcePath: '.wondev/agents/blast-radius.md',
+      },
+    ],
+  };
+
+  it('writes one file per agent for the claude engine', () => {
+    const files = renderTarget(withAgent, named('claude'));
+    const agent = files.find((f) => f.path === '.claude/agents/blast-radius.md');
+    expect(agent).toBeDefined();
+    expect(agent?.mode).toBe('whole');
+    expect(agent?.content).toContain('name: blast-radius');
+    expect(agent?.content).toContain('tools: Read, Grep');
+    expect(agent?.content).toContain('model: sonnet');
+    expect(agent?.content).toContain('AGENT BODY');
+  });
+
+  it('indexes agents in CLAUDE.md rather than inlining them', () => {
+    const memory = renderTarget(withAgent, named('claude'))
+      .find((f) => f.path === 'CLAUDE.md')!.content;
+    expect(memory).toContain('# Available subagents');
+    expect(memory).toContain('**blast-radius**');
+    expect(memory).not.toContain('AGENT BODY');
+  });
+
+  it('lists agents with their path on flat targets, without the body', () => {
+    const out = flattenProject(withAgent);
+    expect(out).toContain('# Subagents');
+    expect(out).toContain('`.wondev/agents/blast-radius.md`');
+    expect(out).not.toContain('AGENT BODY');
+  });
+
+  it('writes no agent files for a claude target that names no agents directory', () => {
+    const files = renderTarget(withAgent, {
+      name: 'legacy',
+      target: { engine: 'claude', memory: 'CLAUDE.md', skills: '.claude/skills', commands: '.claude/commands' },
+    });
+    expect(files.some((f) => f.path.includes('/agents/'))).toBe(false);
+  });
+
+  it('adds no subagent section when the project defines none', () => {
+    expect(flattenProject(project)).not.toContain('# Subagents');
   });
 });

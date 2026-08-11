@@ -90,7 +90,15 @@ export async function runCheck(root: string): Promise<void> {
     }
   }
 
-  const counts = `${ctx.project.memory.length} memory, ${ctx.project.skills.length} skills, ${ctx.project.commands.length} commands`;
+  const parts = [
+    `${ctx.project.memory.length} memory`,
+    `${ctx.project.skills.length} skills`,
+    `${ctx.project.commands.length} commands`,
+  ];
+  // Only when present, so projects that define none are not told about a feature they are
+  // not using every time they run check.
+  if (ctx.project.agents.length > 0) parts.push(`${ctx.project.agents.length} agents`);
+  const counts = parts.join(', ');
   success(`up to date — ${counts} across ${ctx.targets.length} target(s)`);
   if (warnings > 0) info(style.dim(`${warnings} warning(s)`));
 }

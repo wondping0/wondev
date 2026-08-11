@@ -139,6 +139,24 @@ description: Use when investigating a bug or failing test, before proposing a fi
 
 **Commands** — repeatable prompts a person invokes by name, like `/review`.
 
+**Agents** — subagents that run with their own context window. As with skills, the
+`description` is the *dispatch rule*: it is what the calling agent matches against when
+deciding whether to hand a task off.
+
+```markdown
+---
+name: blast-radius
+description: Delegate when a change touches more than three services
+tools: [Read, Grep]
+model: sonnet
+---
+1. Map which services the change reaches. 2. Report those with no test covering the path.
+```
+
+Claude Code gets real files in `.claude/agents/`. Every other target gets a listing — name,
+dispatch rule, and path — because delegation is a host feature, and a host that lacks it
+cannot act on the body anyway.
+
 ### Reference material a skill does not carry
 
 Any `.md` file beside `SKILL.md` becomes an attachment:

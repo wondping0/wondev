@@ -5,9 +5,9 @@ import { WondevError } from '../util/errors.js';
 import { pathExists, writeFileAtomic } from '../util/fs.js';
 import { info, style, success } from '../util/log.js';
 
-export type ArtifactKind = 'skill' | 'memory' | 'command';
+export type ArtifactKind = 'skill' | 'memory' | 'command' | 'agent';
 
-const KINDS: ArtifactKind[] = ['skill', 'memory', 'command'];
+const KINDS: ArtifactKind[] = ['skill', 'memory', 'command', 'agent'];
 const NAME_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 
 export function parseKind(raw: string): ArtifactKind {
@@ -96,6 +96,26 @@ function scaffold(base: string, kind: ArtifactKind, name: string): { file: strin
             `# ${title}`,
             '',
             'Replace this with the prompt to run when this command is invoked.',
+          ].join('\n'),
+        ),
+      };
+    case 'agent':
+      return {
+        file: path.join(base, 'agents', `${name}.md`),
+        content: stringifyFrontmatter(
+          {
+            name,
+            // The description is the dispatch rule the caller matches against, so the
+            // placeholder prompts for a condition rather than a job title.
+            description: 'Delegate to this agent when — describe the condition, not the role',
+          },
+          [
+            `# ${title}`,
+            '',
+            'Replace this with the instructions this subagent should follow.',
+            '',
+            'It runs in its own context window, so say what it needs to know rather than',
+            'assuming it can see the conversation that dispatched it.',
           ].join('\n'),
         ),
       };

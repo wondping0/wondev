@@ -11,6 +11,23 @@ a patch, because it makes `wondev check` fail in every project that upgrades.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-08-11
+
+### Added
+
+- **Subagents, as a fourth artifact type.** `.wondev/agents/<name>.md` with `name`,
+  `description`, and optional `tools` and `model`. The `description` is the dispatch rule the
+  caller matches against, the same way a skill's is a trigger rather than a summary.
+
+  Claude Code gets real files at `.claude/agents/<name>.md` plus an index in `CLAUDE.md`.
+  Every other target gets a listing — name, rule, and source path — because delegation is a
+  host capability and a host without one cannot use the body.
+
+  `wondev add agent <name>` scaffolds one. A custom `claude` target that names no `agents`
+  directory keeps working and simply produces no agent files.
+
+- `wondev check` reports an agent count when a project defines any.
+
 ## [0.3.0] - 2026-08-11
 
 Generated output changes substantially. Run `wondev build` and commit the result; expect

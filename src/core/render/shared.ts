@@ -181,6 +181,21 @@ export function flattenProject(project: Project): string {
     for (const command of project.commands) out.push(commandSection(command));
   }
 
+  // Listed, never inlined. Subagents are a delegation mechanism only some hosts implement;
+  // a host without one cannot act on the body, and a host with one loads the file itself.
+  // Either way the useful part here is knowing which specialists exist.
+  if (project.agents.length > 0) {
+    out.push('# Subagents');
+    out.push(
+      'Specialists this project defines. Hosts that support delegation load them from the paths below.',
+    );
+    out.push(
+      project.agents
+        .map((a) => `- \`${a.sourcePath}\` — **${a.name}** — ${a.description}`)
+        .join('\n'),
+    );
+  }
+
   return `${out.join('\n\n').trim()}\n`;
 }
 

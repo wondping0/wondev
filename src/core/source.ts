@@ -1,6 +1,6 @@
 import path from 'node:path';
 import fs from 'node:fs/promises';
-import type { Attachment, Command, MemoryDoc, Project, Skill } from './model.js';
+import type { Agent, Attachment, Command, MemoryDoc, Project, Skill } from './model.js';
 import { asBoolean, asString, asStringArray, parseFrontmatter } from './frontmatter.js';
 import { listFilesRecursive, normalizeEol, pathExists } from '../util/fs.js';
 import { IO_CONCURRENCY, mapLimit } from '../util/async.js';
@@ -24,6 +24,7 @@ const NAME_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 const MEMORY_SUBDIR = 'memory';
 const SKILLS_SUBDIR = 'skills';
 const COMMANDS_SUBDIR = 'commands';
+const AGENTS_SUBDIR = 'agents';
 
 /** Keys wondev acts on. Everything else is carried through untouched in `extra`. */
 const INTERPRETED_MEMORY_KEYS = new Set([
@@ -56,17 +57,19 @@ export async function loadProject(root: string, projectName: string): Promise<Lo
   const memoryIssues: Issue[] = [];
   const skillIssues: Issue[] = [];
   const commandIssues: Issue[] = [];
+  const agentIssues: Issue[] = [];
 
-  const [memory, skills, commands] = await Promise.all([
+  const [memory, skills, commands, agents] = await Promise.all([
     loadMemory(path.join(base, MEMORY_SUBDIR), memoryIssues),
     loadSkills(path.join(base, SKILLS_SUBDIR), skillIssues),
     loadCommands(path.join(base, COMMANDS_SUBDIR), commandIssues),
+    loadAgents(path.join(base, AGENTS_SUBDIR), agentIssues),
   ]);
-  issues.push(...memoryIssues, ...skillIssues, ...commandIssues);
+  issues.push(...memoryIssues, ...skillIssues, ...commandIssues, ...agentIssues);
 
   checkMemoryLinks(memory, issues);
 
-  const project: Project = { name: projectName, memory, skills, commands };
+  const project: Project = { name: projectName, memory, skills, commands, agents };
   return { project, issues };
 }
 
@@ -323,6 +326,66 @@ async function loadCommands(dir: string, issues: Issue[]): Promise<Command[]> {
   }
 
   return commands.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/**
+ * Read `.wondev/agents/`.
+ *
+ * Deliberately the same shape as commands rather than skills: a subagent is one file with a
+ * dispatch rule, and giving it a directory would invite reference material that the hosts
+ * which support subagents do not load anyway.
+ */
+async function loadAgents(dir: string, issues: Issue[]): Promise<Agent[]> {
+  const files = (await listFilesRecursive(dir)).filter(
+    (f) => f.endsWith('.md') && path.basename(f) !== 'README.md',
+  );
+  const contents = await mapLimit(files, IO_CONCURRENCY, async (rel) =>
+    normalizeEol(await fs.readFile(path.join(dir, rel), 'utf8')),
+  );
+
+  const agents: Agent[] = [];
+  const seen = new Map<string, string>();
+
+  for (const [index, rel] of files.entries()) {
+    const sourcePath = toPosix(path.join(WONDEV_DIR, AGENTS_SUBDIR, rel));
+    const raw = contents[index] as string;
+    const { data, body } = parseFrontmatter(raw, sourcePath);
+
+    const name = asString(data['name']) ?? path.basename(rel).replace(/\.md$/, '');
+    if (!NAME_PATTERN.test(name)) {
+      issues.push({
+        level: 'error',
+        file: sourcePath,
+        message: `agent name "${name}" must be kebab-case (lowercase letters, digits, hyphens)`,
+      });
+      continue;
+    }
+    const previous = seen.get(name);
+    if (previous) {
+      issues.push({ level: 'error', file: sourcePath, message: `duplicate agent name "${name}" (also ${previous})` });
+      continue;
+    }
+    seen.set(name, sourcePath);
+
+    const description = asString(data['description']);
+    if (!description) {
+      issues.push({
+        level: 'error',
+        file: sourcePath,
+        message: 'agent is missing a `description` in frontmatter',
+      });
+      continue;
+    }
+
+    const agent: Agent = { name, description, body, sourcePath };
+    const tools = asStringArray(data['tools']);
+    if (tools) agent.tools = tools;
+    const model = asString(data['model']);
+    if (model) agent.model = model;
+    agents.push(agent);
+  }
+
+  return agents.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 const WIKILINK = /\[\[([^\]]+)\]\]/g;

@@ -15,7 +15,7 @@ function doc(over: Partial<MemoryDoc> & { slug: string }): MemoryDoc {
 }
 
 function project(memory: MemoryDoc[]): Project {
-  return { name: 'demo', memory, skills: [], commands: [] };
+  return { name: 'demo', memory, skills: [], commands: [], agents: [] };
 }
 
 const plain: IndexConfig = { file: 'Index.md', columns: [] };

@@ -63,11 +63,30 @@ export interface Command {
   sourcePath: string;
 }
 
+/**
+ * A delegated worker with its own context window.
+ *
+ * The `description` is the dispatch rule, not a summary: it is what the main agent matches
+ * against when deciding whether to hand a task off. Only some agents support the concept,
+ * so targets that do not get a listing rather than the bodies.
+ */
+export interface Agent {
+  name: string;
+  description: string;
+  /** Tool names the agent may use. Omit to inherit whatever the host grants by default. */
+  tools?: string[];
+  /** Model override, passed through verbatim to targets that understand one. */
+  model?: string;
+  body: string;
+  sourcePath: string;
+}
+
 export interface Project {
   name: string;
   memory: MemoryDoc[];
   skills: Skill[];
   commands: Command[];
+  agents: Agent[];
 }
 
 /** How much of a file wondev owns. */
@@ -114,6 +133,8 @@ export interface ClaudeTarget {
   memory: string;
   skills: string;
   commands: string;
+  /** Where subagents go. Optional so a custom claude target written before 0.4 still loads. */
+  agents?: string;
 }
 
 export type Target = SingleFileTarget | RuleDirTarget | ClaudeTarget;
