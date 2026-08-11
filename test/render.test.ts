@@ -83,7 +83,9 @@ describe('single-file engine', () => {
         {
           slug: 'decisions/0001-x',
           title: 'Decision one',
-          always: false,
+          // always-on so the body is inlined; this test is about heading levels, not about
+          // which documents a flattened target includes.
+          always: true,
           extra: {},
           body: '## Context\n\nWhy.\n\n## Decision\n\nWhat.',
           sourcePath: '.wondev/memory/decisions/0001-x.md',
@@ -104,7 +106,8 @@ describe('single-file engine', () => {
         {
           slug: 'a',
           title: 'A',
-          always: false,
+          // always-on for the same reason as above: the assertion is about fenced blocks.
+          always: true,
           extra: {},
           body: '## Real heading\n\n```bash\n# not a heading, a shell comment\nls\n```',
           sourcePath: '.wondev/memory/a.md',
@@ -284,5 +287,59 @@ describe('flatSlug', () => {
     expect(flatSlug('decisions/0001-x')).toBe('decisions-0001-x');
     expect(flatSlug('Alur Live Map')).toBe('Alur-Live-Map');
     expect(flatSlug('a  b')).toBe('a-b');
+  });
+});
+
+describe('on-demand memory is referenced, not inlined', () => {
+  const mixed: Project = {
+    name: 'demo',
+    memory: [
+      {
+        slug: 'architecture', title: 'Architecture', always: true, extra: {},
+        body: 'ALWAYS BODY: one binary.',
+        sourcePath: '.wondev/memory/architecture.md',
+      },
+      {
+        slug: 'hardening', title: 'Hardening', always: false, extra: {},
+        description: 'Planning a production rollout.',
+        body: 'ONDEMAND BODY: '.padEnd(4000, 'x'),
+        sourcePath: '.wondev/memory/hardening.md',
+      },
+    ],
+    skills: [], commands: [],
+  };
+
+  it('inlines always-on memory and only references the rest', () => {
+    const out = flattenProject(mixed);
+    expect(out).toContain('ALWAYS BODY');
+    expect(out).not.toContain('ONDEMAND BODY');
+    expect(out).toContain('# On-demand memory');
+    expect(out).toContain('`.wondev/memory/hardening.md`');
+  });
+
+  it('gives each reference its cost and its trigger', () => {
+    const out = flattenProject(mixed);
+    expect(out).toContain('**Hardening** (≈1.0k)');
+    expect(out).toContain('Planning a production rollout.');
+  });
+
+  it('applies the same rule to CLAUDE.md', () => {
+    const files = renderTarget(mixed, { name: 'claude', target: BUILTIN_TARGETS['claude']!.target });
+    const memory = files.find((f) => f.path === 'CLAUDE.md')!.content;
+    expect(memory).toContain('ALWAYS BODY');
+    expect(memory).not.toContain('ONDEMAND BODY');
+    expect(memory).toContain('`.wondev/memory/hardening.md`');
+  });
+
+  it('still writes every document in full for rule-dir targets', () => {
+    const files = renderTarget(mixed, { name: 'cursor', target: BUILTIN_TARGETS['cursor']!.target });
+    const joined = files.map((f) => f.content).join('\n');
+    expect(joined).toContain('ALWAYS BODY');
+    expect(joined).toContain('ONDEMAND BODY');
+  });
+
+  it('omits the section entirely when every document is always-on', () => {
+    const allAlways: Project = { ...mixed, memory: [mixed.memory[0]!] };
+    expect(flattenProject(allAlways)).not.toContain('On-demand memory');
   });
 });

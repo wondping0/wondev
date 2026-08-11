@@ -23,21 +23,11 @@ Tests live beside the code they cover, named `*.test.ts`.
 
 Errors that a caller can reasonably handle are returned; everything else throws.
 
-## 0001 — Stay a single process
+# On-demand memory
 
-**Status:** accepted
+Listed, not included. Read one when its trigger matches — the path is relative to the repository root.
 
-### Context
-
-Splitting into services was proposed to allow independent scaling.
-
-### Decision
-
-Stay a single process until a measured bottleneck justifies otherwise.
-
-### Consequences
-
-Deployment stays trivial. Scaling is vertical only, which is acceptable at current volume.
+- `.wondev/memory/decisions/0001-single-process.md` — **0001 — Stay a single process** (≈74)
 
 # Skills
 

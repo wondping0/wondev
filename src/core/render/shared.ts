@@ -1,4 +1,5 @@
 import type { Command, MemoryDoc, Project, Skill } from '../model.js';
+import { estimateTokens, formatTokens } from '../../util/tokens.js';
 
 /**
  * Helpers shared by the render engines. Everything here is pure: given the same `Project`
@@ -116,10 +117,34 @@ export function commandSection(command: Command): string {
 }
 
 /**
+ * One line per on-demand document: where it is, what it costs, and when to read it.
+ *
+ * This is the whole point of `always: false`. A flattened target is read on every turn, so
+ * copying a document nobody asked for into it charges its full cost on every request forever.
+ * A reference costs one line and the agent can open the file when the trigger matches.
+ */
+export function onDemandMemoryIndex(docs: MemoryDoc[]): string {
+  return docs
+    .map((doc) => {
+      const cost = formatTokens(estimateTokens(doc.body));
+      const trigger = doc.description ? ` — ${doc.description}` : '';
+      return `- \`${doc.sourcePath}\` — **${doc.title}** (≈${cost})${trigger}`;
+    })
+    .join('\n');
+}
+
+const ON_DEMAND_PREAMBLE =
+  'Listed, not included. Read one when its trigger matches — the path is relative to the repository root.';
+
+/**
  * The whole project as one markdown document, used by every `single-file` target.
  *
  * Ordering is memory, then skills, then commands: durable facts before procedures before
  * on-demand prompts, so an agent reading top-down gets context before instructions.
+ *
+ * Only `always: true` memory is inlined. Everything else is referenced, because this file is
+ * loaded in full on every turn and a large set of documents would otherwise be paid for
+ * continuously to be useful occasionally.
  */
 export function flattenProject(project: Project): string {
   const out: string[] = [`# ${project.name}`];
@@ -128,9 +153,18 @@ export function flattenProject(project: Project): string {
     'Guidance for AI coding agents working in this repository.',
   );
 
-  if (project.memory.length > 0) {
+  const always = project.memory.filter((d) => d.always);
+  const onDemand = project.memory.filter((d) => !d.always);
+
+  if (always.length > 0) {
     out.push('# Project memory');
-    for (const doc of project.memory) out.push(memorySection(doc));
+    for (const doc of always) out.push(memorySection(doc));
+  }
+
+  if (onDemand.length > 0) {
+    out.push('# On-demand memory');
+    out.push(ON_DEMAND_PREAMBLE);
+    out.push(onDemandMemoryIndex(onDemand));
   }
 
   if (project.skills.length > 0) {

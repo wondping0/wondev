@@ -1,6 +1,6 @@
 import type { ClaudeTarget, Project, RenderedFile } from '../model.js';
 import { stringifyFrontmatter } from '../frontmatter.js';
-import { memorySection } from './shared.js';
+import { memorySection, onDemandMemoryIndex } from './shared.js';
 
 /**
  * Claude Code's native layout.
@@ -56,8 +56,17 @@ export function renderClaude(project: Project, target: ClaudeTarget): RenderedFi
 function claudeMemory(project: Project): string {
   const out: string[] = [`# ${project.name}`];
 
-  if (project.memory.length > 0) {
-    for (const doc of project.memory) out.push(memorySection(doc));
+  // CLAUDE.md is read on every turn, so only always-on memory is inlined. The rest is listed
+  // with its path and trigger, matching how this engine already treats skills.
+  const always = project.memory.filter((d) => d.always);
+  const onDemand = project.memory.filter((d) => !d.always);
+
+  for (const doc of always) out.push(memorySection(doc));
+
+  if (onDemand.length > 0) {
+    out.push('# On-demand memory');
+    out.push('Listed, not included. Read one when its trigger matches.');
+    out.push(onDemandMemoryIndex(onDemand));
   }
 
   // An index, not the bodies: Claude Code loads the skill itself when the description matches.
