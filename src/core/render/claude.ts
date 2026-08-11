@@ -29,6 +29,16 @@ export function renderClaude(project: Project, target: ClaudeTarget): RenderedFi
       content: stringifyFrontmatter(data, skill.body),
       mode: 'whole',
     });
+
+    // This engine is the only one with somewhere real to put these. Claude Code reads them
+    // when SKILL.md points at them, which is exactly the on-demand behaviour they exist for.
+    for (const att of skill.attachments) {
+      files.push({
+        path: `${skillsDir}/${skill.name}/${att.relPath}`,
+        content: att.content,
+        mode: 'whole',
+      });
+    }
   }
 
   const commandsDir = target.commands.replace(/\/+$/, '');

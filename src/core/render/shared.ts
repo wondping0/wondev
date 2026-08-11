@@ -90,6 +90,17 @@ export function skillSection(skill: Skill): string {
     parts.push(`**Applies to:** ${skill.globs.map((g) => `\`${g}\``).join(', ')}`);
   }
   parts.push(sectionBody(skill.body, skill.name));
+
+  // Pointers, never contents. Flat targets already carry every skill body, and reference
+  // material exists precisely so it stays out of the file whose cost is paid every turn.
+  // The paths are real, so an agent that wants the material can read it.
+  if (skill.attachments.length > 0) {
+    const list = skill.attachments
+      .map((a) => `- \`.wondev/skills/${skill.name}/${a.relPath}\``)
+      .join('\n');
+    parts.push(`**Reference material** — read on demand, not included here:\n${list}`);
+  }
+
   return parts.filter(Boolean).join('\n\n').trim();
 }
 
@@ -139,7 +150,13 @@ export function flattenProject(project: Project): string {
   return `${out.join('\n\n').trim()}\n`;
 }
 
-/** Turn a possibly-nested memory slug into a flat, filesystem-safe basename. */
+/**
+ * Turn a possibly-nested memory slug into a flat, filesystem-safe basename.
+ *
+ * Whitespace collapses too. Memory slugs are unconstrained -- only skill and command names
+ * must be kebab-case -- so a vault written for humans can hold `Live Map.md`, and without
+ * this that becomes a generated filename with spaces in someone's repository.
+ */
 export function flatSlug(slug: string): string {
-  return slug.replace(/[/\\]/g, '-');
+  return slug.replace(/[/\\]/g, '-').replace(/\s+/g, '-');
 }

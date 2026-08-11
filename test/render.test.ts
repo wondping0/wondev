@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { NamedTarget, Project } from '../src/core/model.js';
-import { renderAll, renderTarget } from '../src/core/render/index.js';
+import { flattenProject, renderAll, renderTarget } from '../src/core/render/index.js';
+import { flatSlug } from '../src/core/render/shared.js';
 import { BUILTIN_TARGETS } from '../src/core/registry.js';
 import { WondevError } from '../src/util/errors.js';
 
@@ -231,5 +232,57 @@ describe('renderAll', () => {
       target: { engine: 'single-file', path: '../escaped.md' },
     };
     expect(() => renderTarget(project, escape)).toThrow(/outside the project/);
+  });
+});
+
+describe('skill attachments', () => {
+  const withAttachment: Project = {
+    name: 'demo',
+    memory: [],
+    skills: [
+      {
+        name: 'graphify',
+        description: 'Use when querying the code graph',
+        attachments: [
+          { relPath: 'references/query.md', content: '# Query\n\nRun graphify query.' },
+        ],
+        body: 'Ask the graph first.',
+        sourcePath: '.wondev/skills/graphify/SKILL.md',
+      },
+    ],
+    commands: [],
+  };
+
+  it('writes attachments beside SKILL.md for the claude engine', () => {
+    const files = renderTarget(withAttachment, {
+      name: 'claude',
+      target: BUILTIN_TARGETS['claude']!.target,
+    });
+    const paths = files.map((f) => f.path);
+    expect(paths).toContain('.claude/skills/graphify/SKILL.md');
+    expect(paths).toContain('.claude/skills/graphify/references/query.md');
+    const att = files.find((f) => f.path.endsWith('references/query.md'));
+    expect(att?.mode).toBe('whole');
+    expect(att?.content).toContain('Run graphify query.');
+  });
+
+  it('points at attachments from flat targets rather than inlining them', () => {
+    const out = flattenProject(withAttachment);
+    expect(out).toContain('.wondev/skills/graphify/references/query.md');
+    expect(out).toContain('Ask the graph first.');
+    // The whole reason attachments exist is to stay out of the always-loaded file.
+    expect(out).not.toContain('Run graphify query.');
+  });
+
+  it('adds no pointer block for a skill with no attachments', () => {
+    expect(flattenProject(project)).not.toContain('Reference material');
+  });
+});
+
+describe('flatSlug', () => {
+  it('collapses separators and whitespace so filenames stay safe', () => {
+    expect(flatSlug('decisions/0001-x')).toBe('decisions-0001-x');
+    expect(flatSlug('Alur Live Map')).toBe('Alur-Live-Map');
+    expect(flatSlug('a  b')).toBe('a-b');
   });
 });
