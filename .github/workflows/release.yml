@@ -33,6 +33,24 @@ jobs:
       - name: Use an npm new enough for trusted publishing
         run: npm install -g "npm@^11.5.1"
 
+      # setup-node's registry-url writes `//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}`
+      # into .npmrc whether or not a token exists. npm treats the mere presence of that line
+      # as "authentication is configured", so it never starts the OIDC exchange and PUTs the
+      # tarball anonymously -- which the registry answers with E404, not 401, because it will
+      # not confirm a package exists to an unauthenticated caller. The error therefore reads
+      # as "no such package" while the real cause is an empty credential.
+      #
+      # Deleting the line is what makes npm look for OIDC. The registry line above it stays.
+      - name: Remove the placeholder auth line so trusted publishing engages
+        run: |
+          npmrc="${NPM_CONFIG_USERCONFIG:-$HOME/.npmrc}"
+          if [ -f "$npmrc" ]; then
+            sed -i '/_authToken/d' "$npmrc"
+            echo "npmrc after cleanup:"; cat "$npmrc"
+          else
+            echo "no .npmrc at $npmrc"
+          fi
+
       - run: npm ci
 
       # The same pipeline as CI. A tag must not be able to publish something that does not
