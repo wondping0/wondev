@@ -86,9 +86,10 @@ architecture, conventions, glossary, and decision records. Edit them; they are y
 | Command | What it does |
 | ------- | ------------ |
 | `wondev init` | Scaffold `.wondev/` with the starter pack, then build |
+| `wondev adopt` | Read existing agent config back into `.wondev/` |
 | `wondev build` | Compile to every enabled target |
 | `wondev watch` | Rebuild whenever `.wondev/` changes |
-| `wondev add <skill\|memory\|command> <name>` | Scaffold one new artifact |
+| `wondev add <skill\|memory\|command\|agent> <name>` | Scaffold one new artifact |
 | `wondev check` | Validate sources and detect drift — exits 1 on failure |
 | `wondev clean` | Remove generated files, per the manifest |
 | `wondev migrate` | Bring an older `.wondev/` up to the current source schema |
@@ -244,6 +245,30 @@ index:
 
 They are never written into a target's own frontmatter — those files are parsed by other
 people's tools.
+
+## Already have agent config?
+
+`wondev adopt` runs the compiler backwards. It reads `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`,
+`.github/copilot-instructions.md`, `CONVENTIONS.md`, and the whole `.claude/` tree —
+skills with their attachments, commands, subagents — and writes `.wondev/` from them.
+
+```bash
+npx wondev adopt --dry-run                    # see the plan first
+npx wondev adopt --vault docs/dev-guide       # also take a markdown directory in as memory
+```
+
+It is honest about being lossy. A skill trigger that was never written down cannot be read
+back out, so adopt leaves it absent rather than inventing one — a wrong `description` is
+worse than a missing one, because it is what an agent matches on.
+
+Two things it does get right that are easy to get wrong. It takes only the hand-written part
+of a file wondev previously generated, so adopting does not round-trip wondev's own output
+back into the source. And `--vault` normalises human filenames — `Alur Live Map.md` becomes
+`alur-live-map` — while rewriting the `[[wikilinks]]` between them, so a vault that was
+internally consistent stays that way. Links pointing at things that were never notes are
+reported up front, with counts, rather than surfacing as errors on your first build.
+
+Nothing is deleted, and the files it adopted from stay where they are.
 
 ## A guide for people, from the same source
 

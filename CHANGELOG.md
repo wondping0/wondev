@@ -11,6 +11,28 @@ a patch, because it makes `wondev check` fail in every project that upgrades.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-08-11
+
+### Added
+
+- **`wondev adopt`** — the compiler run backwards, for projects that already have agent
+  config but no wondev source. Reads `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`,
+  `.github/copilot-instructions.md`, `CONVENTIONS.md`, and the whole `.claude/` tree
+  (skills with attachments, commands, subagents), and writes `.wondev/` plus a config naming
+  the targets it found evidence of.
+
+  `--dry-run` prints the plan. `--vault <dir>` additionally takes a directory of markdown in
+  as on-demand memory, normalising human filenames (`Alur Live Map.md` → `alur-live-map`)
+  and rewriting the `[[wikilinks]]` between them so an internally consistent vault stays
+  consistent. Links naming things that were never notes are reported with counts at adopt
+  time rather than appearing as errors on the first build.
+
+  It takes only the hand-written part of a file wondev previously generated, so adopting
+  cannot round-trip wondev's own output back into the source. Nothing is deleted.
+
+  Deliberately lossy where it must be: a skill trigger that was never written down is left
+  absent rather than invented.
+
 ## [0.5.0] - 2026-08-11
 
 ### Added

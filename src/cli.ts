@@ -15,6 +15,7 @@ ${style.bold('Usage')}
 
 ${style.bold('Commands')}
   init                     Scaffold .wondev/ with the starter pack, then build
+  adopt                    Read existing agent config back into .wondev/
   build                    Compile .wondev/ into every enabled target
   watch                    Rebuild whenever .wondev/ changes
   add <type> <name>        Add a skill, memory, command, or agent
@@ -30,13 +31,14 @@ ${style.bold('Options')}
   --cwd <dir>              Run against a different project directory
   --targets <a,b,c>        init: which targets to enable
   --all                    init: enable every known target
-  --force                  init: overwrite .wondev/ · build: overwrite conflicting files
+  --force                  init, adopt: overwrite .wondev/ · build: overwrite conflicting files
   --target <name>          build: build only one target
-  --dry-run                build, migrate, upgrade: show changes, write nothing
+  --dry-run                build, migrate, upgrade, adopt: show changes, write nothing
   --only <path>            upgrade: limit to one starter file or directory
   --restore                upgrade: re-add starter files you deleted
   --no-new                 upgrade: skip templates that are new in this release
   --new                    targets: only those added since you initialised
+  --vault <dir>            adopt: also take a markdown directory in as memory
   --online                 doctor: also ask npm whether a newer wondev exists
   --no-color               Disable coloured output
   -h, --help               Show this help
@@ -138,6 +140,7 @@ async function main(argv: string[]): Promise<number> {
       'no-new': { type: 'boolean' },
       new: { type: 'boolean' },
       online: { type: 'boolean' },
+      vault: { type: 'string' },
     },
   });
 
@@ -222,6 +225,16 @@ async function main(argv: string[]): Promise<number> {
         only: values.only,
         restore: values.restore === true,
         noNew: values['no-new'] === true,
+      });
+      return 0;
+    }
+
+    case 'adopt': {
+      const { runAdopt } = await import('./commands/adopt.js');
+      await runAdopt(root, {
+        dryRun: values['dry-run'] === true,
+        force: values.force === true,
+        vault: typeof values.vault === 'string' ? values.vault : undefined,
       });
       return 0;
     }

@@ -77,6 +77,7 @@ export { runAdd } from './commands/add.js';
 export { runMigrate } from './commands/migrate.js';
 export { runUpgrade } from './commands/upgrade.js';
 export { runDoctor } from './commands/doctor.js';
+export { runAdopt } from './commands/adopt.js';
 export { runWatch } from './commands/watch.js';
 
 export {
