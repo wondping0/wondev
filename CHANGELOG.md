@@ -11,6 +11,42 @@ a patch, because it makes `wondev check` fail in every project that upgrades.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-11
+
+Generated output changes substantially. Run `wondev build` and commit the result; expect
+flattened targets to get **much** smaller.
+
+### Fixed
+
+- **`wondev watch` rebuilt forever after a single edit.** Every build rewrites
+  `.wondev/.manifest.json`, which lives inside the watched directory, so a build triggered
+  its own successor — roughly six rebuilds per second, indefinitely, until the process was
+  killed. An idle `watch` looked stable because the first build runs before the watchers
+  exist, so only an edit started the cycle. Present in every release so far.
+
+### Changed
+
+- **Memory that is not `always: true` is no longer inlined into flattened targets.**
+  `AGENTS.md`, `CLAUDE.md` and the other single-file targets are read on every turn, and
+  until now they carried every memory document regardless of the flag, which only affected
+  sort order. Each on-demand document now gets one line — path, title, estimated cost, and
+  its `description` as the trigger — and the agent opens what matches.
+
+  Measured on a 22-note vault with nothing marked always-on: `AGENTS.md` fell from ~66k to
+  ~10.7k tokens, `CLAUDE.md` from ~56k to ~0.6k.
+
+  `rule-dir` targets are unaffected; they already write one file per document.
+
+### Added
+
+- The public API now exports the memory index, attachment and freshness surface
+  (`renderIndex`, `alwaysOnTokens`, `docTokens`, `onDemandMemoryIndex`, `estimateTokens`,
+  `formatTokens`, `INDEX_OWNER`, `Attachment`, `IndexConfig`, `IndexColumn`) — all of which
+  0.2.0 shipped without exporting.
+- `src/index.ts` documents which exports are stable and which are provisional. The writer
+  internals (`planWrites`, `applyPlan`, `cleanAll`) and the `run*` entry points are
+  provisional and will be narrowed or removed in 1.0.
+
 ## [0.2.0] - 2026-08-11
 
 Generated output changes, so `wondev check` will report drift until you run `wondev build`

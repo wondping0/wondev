@@ -102,7 +102,16 @@ Useful flags: `--targets a,b,c` and `--all` on `init`; `--dry-run`, `--force`, a
 ## The three artifact types
 
 **Memory** — durable project facts. Architecture, conventions, glossary, decision records.
-Set `always: true` for the few worth loading into every conversation.
+
+`always: true` is the load-bearing flag. Documents marked always-on are **copied into** the
+flattened targets an agent reads on every turn. Everything else is **referenced**: one line
+carrying its path, its estimated token cost, and its `description` as the trigger, so the
+agent opens it only when the trigger matches.
+
+That distinction is the whole point. On a 22-note vault where nothing was marked always-on,
+inlining everything produced a 66k-token `AGENTS.md`; referencing brought it to 10.7k, and
+`CLAUDE.md` from 56k to 0.6k. Mark a document `always: true` only if it is worth paying for
+in every single request.
 
 > [!TIP]
 > The highest-value thing to write down is what you **tried and rejected**. It is the one
