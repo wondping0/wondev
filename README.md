@@ -54,15 +54,17 @@ flowchart LR
         M["memory/<br/><i>architecture, conventions,<br/>decisions</i>"]
         S["skills/<br/><i>procedures, with the<br/>trigger that loads them</i>"]
         C["commands/<br/><i>prompts you invoke<br/>by name</i>"]
+        A["agents/<br/><i>subagents, with the rule<br/>that dispatches them</i>"]
     end
 
     SRC ==> B{{"wondev build"}}
 
-    B --> O1["CLAUDE.md<br/>.claude/skills/<br/>.claude/commands/"]
+    B --> O1["CLAUDE.md<br/>.claude/skills/<br/>.claude/commands/<br/>.claude/agents/"]
     B --> O2["AGENTS.md<br/><i>read by 16 tools</i>"]
     B --> O3[".cursor/rules/*.mdc"]
     B --> O4[".github/copilot-instructions.md"]
     B --> O5["GEMINI.md · CONVENTIONS.md<br/>.windsurf · .clinerules · .roo<br/>.continue · .kiro · .junie"]
+    B --> O7["GUIDE.html<br/><i>for people</i>"]
     B -.-> O6["anything you define<br/>in customTargets"]
 ```
 
@@ -78,8 +80,12 @@ npx wondev check         # validate and detect drift
 ```
 
 `init` writes six ready-to-use skills — `debugging`, `writing-tests`, `code-review`,
-`planning-work`, `git-workflow`, `verify-before-done` — plus memory scaffolds for
-architecture, conventions, glossary, and decision records. Edit them; they are yours.
+`planning-work`, `git-workflow`, `verify-before-done` — memory scaffolds for architecture,
+conventions, glossary, decision records, and context discipline, and one example subagent.
+Edit them; they are yours.
+
+Already have `CLAUDE.md` or `.claude/`? Use [`wondev adopt`](#already-have-agent-config)
+instead — it reads what you have rather than writing over it.
 
 ## Commands
 
@@ -102,7 +108,7 @@ architecture, conventions, glossary, and decision records. Edit them; they are y
 Useful flags: `--targets a,b,c` and `--all` on `init`; `--dry-run`, `--force`, and
 `--target <name>` on `build`; `--cwd <dir>` and `--no-color` everywhere.
 
-## The three artifact types
+## The four artifact types
 
 **Memory** — durable project facts. Architecture, conventions, glossary, decision records.
 
