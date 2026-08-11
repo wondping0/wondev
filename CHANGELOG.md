@@ -11,6 +11,29 @@ a patch, because it makes `wondev check` fail in every project that upgrades.
 
 ## [Unreleased]
 
+## [0.9.10] - 2026-08-11
+
+### Security
+
+- **`wondev remove` could delete files outside the project.** It built a path from its
+  `name` argument and called `fs.rm` directly, bypassing the guards every other deletion in
+  wondev routes through. `wondev remove memory ../../../notes` deleted a file outside the
+  project entirely, and `wondev remove skill ../../../dir` removed a whole directory tree
+  recursively — both reporting success. Introduced in 0.8.0, present through 0.9.9.
+
+  Names containing `..` or an absolute path are now refused before anything is resolved, and
+  the resolved path is re-checked against its own directory before the delete, mirroring the
+  defence in depth already in `removeOwned`.
+
+  This matters more than a typo hazard: wondev is built to be used by agents, and an agent
+  composing a command from repository content is the ordinary case.
+
+- **`wondev adopt --vault` could read outside the project.** Adopt copies what it reads into
+  `.wondev/`, which is committed, so a mistyped path could place external content —
+  credentials, anything — into git. A vault outside the project is now refused.
+
+Upgrade if you are on 0.8.0 or later.
+
 ## [0.9.9] - 2026-08-11
 
 The pre-1.0 cleanup. **Breaking for library consumers**; the CLI is unaffected.

@@ -26,6 +26,36 @@ export interface RemoveOptions {
   noBuild?: boolean;
 }
 
+/**
+ * Refuse a name that could point outside the directory it belongs to.
+ *
+ * `remove` builds a path from an argument and then deletes it, which makes it the one place
+ * in wondev where an unvalidated name becomes `fs.rm`. Without this,
+ * `wondev remove memory ../../../notes` deleted a file outside the project entirely, and the
+ * skill form deleted a whole directory tree recursively -- reporting both as a success.
+ *
+ * Checked lexically first for a clear message, then again against the resolved path, because
+ * the lexical test alone cannot account for how the platform normalises a separator.
+ */
+function assertInside(dir: string, name: string, kind: ArtifactKind): void {
+  if (name.trim() === '' || /(^|[/\\])\.\.([/\\]|$)/.test(name) || path.isAbsolute(name)) {
+    throw new WondevError(
+      `Invalid ${kind} name "${name}".`,
+      'A name identifies something inside .wondev/; it cannot contain `..` or be an absolute path.',
+    );
+  }
+}
+
+/** Second gate: the resolved path must still sit under the directory it came from. */
+function assertResolvedInside(dir: string, target: string): void {
+  const root = path.resolve(dir) + path.sep;
+  if (!(path.resolve(target) + path.sep).startsWith(root)) {
+    throw new WondevError(
+      `Refusing to delete outside ${path.basename(dir)}/: ${target}`,
+    );
+  }
+}
+
 /** Where each kind lives, and whether it owns a directory. */
 function locate(base: string, kind: ArtifactKind, name: string): { file: string; dir?: string } {
   switch (kind) {
@@ -51,6 +81,9 @@ export async function runRemove(
   if (!(await pathExists(base))) {
     throw new WondevError(`No .wondev/ in ${root}.`, 'Run `wondev init` first.');
   }
+
+  // Before anything is resolved, let alone deleted.
+  assertInside(base, name, kind);
 
   const { file, dir } = locate(base, kind, name);
 
@@ -78,9 +111,13 @@ export async function runRemove(
     return;
   }
 
+  // Defence in depth, mirroring removeOwned in writer.ts: this is the only other place in
+  // wondev that deletes, so it re-checks regardless of what the caller already validated.
   if (removeDir) {
+    assertResolvedInside(path.join(base, 'skills'), dir);
     await fs.rm(dir, { recursive: true, force: true });
   } else {
+    assertResolvedInside(base, target);
     await fs.rm(target, { force: true });
   }
   success(`removed ${style.cyan(rel)}`);

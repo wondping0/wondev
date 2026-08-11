@@ -186,3 +186,12 @@ describe('frontmatter key mapping', () => {
     expect(doc?.verified).toBe('2026-08-10');
   });
 });
+
+describe('adopt keeps its reads inside the project', () => {
+  it('refuses a vault outside the project, since it copies into a committed directory', async () => {
+    await write(root, 'CLAUDE.md', '# P\n\nx\n');
+    const err = await catchWondevError(() => adopt({ vault: '../elsewhere' }));
+    expect(err.message).toMatch(/inside the project/);
+    expect(err.hint).toMatch(/you commit/);
+  });
+});

@@ -8,7 +8,7 @@ import { parseFrontmatter, stringifyFrontmatter } from '../core/frontmatter.js';
 import { WondevError } from '../util/errors.js';
 import { wondevVersion } from '../util/version.js';
 import { listFilesRecursive, normalizeEol, pathExists, writeFileAtomic } from '../util/fs.js';
-import { toPosix } from '../util/paths.js';
+import { isInsideRoot, toPosix } from '../util/paths.js';
 import { info, plural, step, style, success, warn } from '../util/log.js';
 
 /**
@@ -284,6 +284,17 @@ async function adoptVault(
   skipped: string[],
   keyMap: Map<string, string>,
 ): Promise<Planned[]> {
+  // Same boundary the writer enforces, applied to a read. Adopt copies what it finds into
+  // `.wondev/`, which is committed, so pointing this outside the project turns a mistyped
+  // path into content landing in git. A vault that genuinely lives elsewhere can be copied
+  // in first, deliberately.
+  if (!isInsideRoot(vaultRel)) {
+    throw new WondevError(
+      `--vault must be a relative path inside the project (got "${vaultRel}").`,
+      'Adopt copies what it reads into .wondev/, which you commit.',
+    );
+  }
+
   const abs = path.join(root, vaultRel);
   if (!(await pathExists(abs))) {
     throw new WondevError(`No such directory: ${vaultRel}`);

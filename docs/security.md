@@ -40,6 +40,27 @@ passes any lexical check while every write lands in the user's SSH directory. Co
 attacker-controlled memory content, that is a write-what-where primitive against a file like
 `authorized_keys`.
 
+### A command argument cannot direct deletion outward
+
+`wondev remove <type> <name>` builds a path from `name` and deletes it, which makes it the
+only place besides the manifest where untrusted text becomes `fs.rm`. A name containing `..`
+or an absolute path is refused before anything is resolved, and the resolved path is checked
+again against the directory it came from before the delete.
+
+This was a real defect, not a hypothetical: between 0.8.0 and 0.9.9,
+`wondev remove memory ../../../notes` deleted a file outside the project, and the skill form
+removed an entire directory tree recursively. Both reported success. Fixed in 0.9.10.
+
+The reason it matters beyond a typo: wondev exists to be used by agents, and an agent
+constructing a command from repository content is the ordinary case, not an exotic one.
+
+### Reads stay inside the project too
+
+`wondev adopt --vault <dir>` copies what it reads into `.wondev/`, which is committed. A
+vault outside the project is refused, so a mistyped path cannot land external content — a
+credentials file, anything — in git. A vault that genuinely lives elsewhere is copied in
+deliberately first.
+
 ### The manifest cannot direct deletion outward
 
 `.wondev/.manifest.json` lists paths wondev will delete on `clean`, and on any build that

@@ -1,3 +1,5 @@
+import path from 'node:path';
+import fs from 'node:fs/promises';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { runBuild } from '../src/commands/build.js';
 import { runRemove } from '../src/commands/remove.js';
@@ -73,5 +75,49 @@ describe('wondev remove', () => {
     await seedProject(root, ['claude']);
     const err = await catchWondevError(() => remove('widget', 'x'));
     expect(err.message).toMatch(/Unknown artifact type/);
+  });
+});
+
+describe('remove refuses to delete outside .wondev/', () => {
+  /**
+   * Regression test for arbitrary file deletion.
+   *
+   * `remove` built a path from its argument and called fs.rm, bypassing the guards the rest
+   * of wondev routes deletion through. `wondev remove memory ../../../notes` deleted a file
+   * outside the project, and the skill form deleted a directory tree recursively -- both
+   * reported as a success. Introduced in 0.8.0, live in 0.9.9.
+   */
+  it('rejects a name that climbs out of the directory', async () => {
+    await seedProject(root, ['claude']);
+    for (const name of ['../../../x', 'a/../../../x', '..']) {
+      const err = await catchWondevError(() => remove('memory', name));
+      expect(err.message).toMatch(/Invalid memory name/);
+      expect(err.hint).toMatch(/cannot contain/);
+    }
+  });
+
+  it('rejects an absolute path', async () => {
+    await seedProject(root, ['claude']);
+    const err = await catchWondevError(() => remove('memory', '/etc/passwd'));
+    expect(err.message).toMatch(/Invalid memory name/);
+  });
+
+  it('leaves a file outside the project untouched', async () => {
+    await seedProject(root, ['claude']);
+    const outside = path.join(root, '..', `wondev-canary-${path.basename(root)}.md`);
+    await fs.writeFile(outside, 'CANARY', 'utf8');
+    try {
+      await catchWondevError(() => remove('memory', '../../../' + path.basename(outside, '.md')));
+      expect(await fs.readFile(outside, 'utf8')).toBe('CANARY');
+    } finally {
+      await fs.rm(outside, { force: true });
+    }
+  });
+
+  it('still removes a legitimate nested memory slug', async () => {
+    await seedProject(root, ['claude']);
+    await write(root, '.wondev/memory/decisions/0001-x.md', '---\ntitle: X\n---\n\nx\n');
+    await remove('memory', 'decisions/0001-x', { noBuild: true });
+    expect(await exists(root, '.wondev/memory/decisions/0001-x.md')).toBe(false);
   });
 });
