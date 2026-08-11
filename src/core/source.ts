@@ -1,6 +1,6 @@
 import path from 'node:path';
 import fs from 'node:fs/promises';
-import type { Command, MemoryDoc, Project, Skill } from './model.js';
+import type { Attachment, Command, MemoryDoc, Project, Skill } from './model.js';
 import { asBoolean, asString, asStringArray, parseFrontmatter } from './frontmatter.js';
 import { listFilesRecursive, normalizeEol, pathExists } from '../util/fs.js';
 import { IO_CONCURRENCY, mapLimit } from '../util/async.js';
@@ -24,6 +24,21 @@ const NAME_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 const MEMORY_SUBDIR = 'memory';
 const SKILLS_SUBDIR = 'skills';
 const COMMANDS_SUBDIR = 'commands';
+
+/** Keys wondev acts on. Everything else is carried through untouched in `extra`. */
+const INTERPRETED_MEMORY_KEYS = new Set([
+  'title',
+  'description',
+  'always',
+  'globs',
+  'verified',
+  'verifiedAgainst',
+]);
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Only markdown: every other byte sequence would be corrupted by the generated header. */
+const ATTACHMENT_EXT = '.md';
 
 /**
  * Read `.wondev/` into a `Project`.
@@ -90,6 +105,9 @@ async function loadMemory(dir: string, issues: Issue[]): Promise<MemoryDoc[]> {
       slug,
       title,
       always: asBoolean(data['always']) ?? false,
+      extra: Object.fromEntries(
+        Object.entries(data).filter(([k]) => !INTERPRETED_MEMORY_KEYS.has(k)),
+      ),
       body,
       sourcePath,
     };
@@ -97,6 +115,24 @@ async function loadMemory(dir: string, issues: Issue[]): Promise<MemoryDoc[]> {
     if (description) doc.description = description;
     const globs = asStringArray(data['globs']);
     if (globs) doc.globs = globs;
+
+    const verified = asString(data['verified']);
+    if (verified !== undefined) {
+      // A malformed date must not become a tick in the index. Saying "checked" when nobody
+      // checked is worse than saying nothing.
+      if (ISO_DATE.test(verified)) {
+        doc.verified = verified;
+      } else {
+        issues.push({
+          level: 'warning',
+          file: sourcePath,
+          message: `verified must be YYYY-MM-DD (got "${verified}"); ignoring it`,
+        });
+      }
+    }
+    const against = asString(data['verifiedAgainst']);
+    if (against) doc.verifiedAgainst = against;
+
     docs.push(doc);
   }
 
@@ -111,6 +147,9 @@ async function loadSkills(dir: string, issues: Issue[]): Promise<Skill[]> {
   const candidates = await findSkillFiles(dir);
   const contents = await mapLimit(candidates, IO_CONCURRENCY, async ({ file }) =>
     normalizeEol(await fs.readFile(file, 'utf8')),
+  );
+  const extras = await mapLimit(candidates, IO_CONCURRENCY, ({ dir: skillDir }) =>
+    loadAttachments(skillDir),
   );
 
   const skills: Skill[] = [];
@@ -148,7 +187,16 @@ async function loadSkills(dir: string, issues: Issue[]): Promise<Skill[]> {
       continue;
     }
 
-    const skill: Skill = { name, description, body, sourcePath };
+    const { attachments, skipped } = extras[index] as Awaited<ReturnType<typeof loadAttachments>>;
+    for (const s of skipped) {
+      issues.push({
+        level: 'warning',
+        file: sourcePath,
+        message: `ignoring "${s}": skill attachments must be ${ATTACHMENT_EXT} files`,
+      });
+    }
+
+    const skill: Skill = { name, description, attachments, body, sourcePath };
     const globs = asStringArray(data['globs']);
     if (globs) skill.globs = globs;
     skills.push(skill);
@@ -157,8 +205,16 @@ async function loadSkills(dir: string, issues: Issue[]): Promise<Skill[]> {
   return skills.sort((a, b) => a.name.localeCompare(b.name));
 }
 
+/** A skill's `SKILL.md`, plus the directory holding it when there is one. */
+interface SkillCandidate {
+  file: string;
+  fallbackName: string;
+  /** Null for the flat `skills/<name>.md` form, which can carry no attachments. */
+  dir: string | null;
+}
+
 /** Accepts both `skills/<name>/SKILL.md` and the flatter `skills/<name>.md`. */
-async function findSkillFiles(dir: string): Promise<Array<{ file: string; fallbackName: string }>> {
+async function findSkillFiles(dir: string): Promise<SkillCandidate[]> {
   let entries;
   try {
     entries = await fs.readdir(dir, { withFileTypes: true });
@@ -173,18 +229,52 @@ async function findSkillFiles(dir: string): Promise<Array<{ file: string; fallba
   // round trip instead of N.
   const found = await mapLimit(sorted, IO_CONCURRENCY, async (entry) => {
     if (entry.isDirectory()) {
-      const skillFile = path.join(dir, entry.name, 'SKILL.md');
+      const skillDir = path.join(dir, entry.name);
+      const skillFile = path.join(skillDir, 'SKILL.md');
       return (await pathExists(skillFile))
-        ? { file: skillFile, fallbackName: entry.name }
+        ? { file: skillFile, fallbackName: entry.name, dir: skillDir }
         : null;
     }
     if (entry.isFile() && entry.name.endsWith('.md') && entry.name !== 'README.md') {
-      return { file: path.join(dir, entry.name), fallbackName: entry.name.replace(/\.md$/, '') };
+      return {
+        file: path.join(dir, entry.name),
+        fallbackName: entry.name.replace(/\.md$/, ''),
+        dir: null,
+      };
     }
     return null;
   });
 
-  return found.filter((v): v is { file: string; fallbackName: string } => v !== null);
+  return found.filter((v): v is SkillCandidate => v !== null);
+}
+
+/**
+ * Everything in a skill directory except `SKILL.md`, which the skill body already covers.
+ *
+ * Warnings are returned rather than pushed so the caller can emit them in candidate order;
+ * concurrent loading would otherwise make the report order depend on disk timing.
+ */
+async function loadAttachments(
+  dir: string | null,
+): Promise<{ attachments: Attachment[]; skipped: string[] }> {
+  if (dir === null) return { attachments: [], skipped: [] };
+
+  const rel = (await listFilesRecursive(dir))
+    .map(toPosix)
+    .filter((f) => f !== 'SKILL.md')
+    .sort();
+
+  const skipped = rel.filter((f) => !f.endsWith(ATTACHMENT_EXT));
+  const keep = rel.filter((f) => f.endsWith(ATTACHMENT_EXT));
+
+  const contents = await mapLimit(keep, IO_CONCURRENCY, async (r) =>
+    normalizeEol(await fs.readFile(path.join(dir, r), 'utf8')),
+  );
+
+  return {
+    attachments: keep.map((relPath, i) => ({ relPath, content: contents[i] as string })),
+    skipped,
+  };
 }
 
 async function loadCommands(dir: string, issues: Issue[]): Promise<Command[]> {

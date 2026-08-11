@@ -15,9 +15,33 @@ export interface MemoryDoc {
   always: boolean;
   /** Optional path scoping for targets that support it. */
   globs?: string[];
+  /** Date this document was last checked against the code, ISO `YYYY-MM-DD`. */
+  verified?: string;
+  /** What it was checked against -- the evidence, not just the date. */
+  verifiedAgainst?: string;
+  /**
+   * Frontmatter keys wondev does not interpret, preserved verbatim.
+   *
+   * Never injected into a target's own frontmatter: `.mdc` and `.md` rule files are parsed
+   * by other people's tools, and posting unknown keys into them risks breaking a parser
+   * wondev does not control. They surface in the memory index instead, on request.
+   */
+  extra: Record<string, unknown>;
   body: string;
   /** Source path relative to `.wondev/`, always forward-slashed. */
   sourcePath: string;
+}
+
+/**
+ * A file a skill carries alongside it.
+ *
+ * Reference material exists so it can be read on demand rather than injected, which is why
+ * flat targets get a pointer to it rather than its contents.
+ */
+export interface Attachment {
+  /** Path relative to the skill directory, forward-slashed, e.g. `references/query.md`. */
+  relPath: string;
+  content: string;
 }
 
 /** A reusable procedure the agent should follow when its trigger condition matches. */
@@ -25,6 +49,8 @@ export interface Skill {
   name: string;
   description: string;
   globs?: string[];
+  /** Sorted by `relPath`. Empty for the flat `skills/<name>.md` form, which has no directory. */
+  attachments: Attachment[];
   body: string;
   sourcePath: string;
 }
