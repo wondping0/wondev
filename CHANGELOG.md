@@ -11,6 +11,28 @@ a patch, because it makes `wondev check` fail in every project that upgrades.
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-08-11
+
+### Added
+
+- **`include` on `single-file` targets** — choose which artifact types a flattened target
+  carries, e.g. `include: [memory]`. Useful when a host discovers skills itself; repeating
+  them in its context file is paid for on every turn. The shared flatten memo is
+  deliberately not reused for a narrowed target, which would otherwise hand it everything.
+
+- `docs/tooling.md` now explains **why engines are not user-pluggable**: loading a JS module
+  named by `wondev.yaml` would execute code from what the threat model calls untrusted
+  input, so a cloned repository could run arbitrary code on `wondev build`. A new engine is
+  a small pull request; a code-loading mechanism is a permanent hole.
+
+### Fixed
+
+- `flatSlug` now replaces `< > : " | ? *` as well as separators and whitespace. Those are
+  legal in a POSIX filename and rejected outright by Windows, so a memory slug containing
+  one produced a repository that could not be checked out on Windows at all — a failure the
+  author never sees, because their own checkout works. Runs are collapsed and edges trimmed,
+  so no generated filename begins or ends with a separator.
+
 ## [0.8.0] - 2026-08-11
 
 ### Added

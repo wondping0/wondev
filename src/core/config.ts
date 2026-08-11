@@ -1,8 +1,11 @@
 import path from 'node:path';
 import { parse as parseYaml, parseDocument } from 'yaml';
 import { SOURCE_SCHEMA_VERSION } from './schema.js';
+import { ALL_SECTIONS } from './model.js';
 import type {
+  ArtifactSection,
   ClaudeTarget,
+  SingleFileTarget,
   NamedTarget,
   RuleDirFrontmatterMap,
   RuleDirTarget,
@@ -258,11 +261,30 @@ export function validateTarget(name: string, raw: unknown): Target {
       if (mode !== undefined && mode !== 'region' && mode !== 'whole') {
         throw new WondevError(`customTargets.${name}: "mode" must be "region" or "whole".`);
       }
-      return {
+      const single: SingleFileTarget = {
         engine: 'single-file',
         path: requirePath('path'),
         mode: (mode as WriteMode | undefined) ?? 'region',
       };
+      const include = obj['include'];
+      if (include !== undefined && include !== null) {
+        if (!Array.isArray(include) || include.length === 0) {
+          throw new WondevError(
+            `customTargets.${name}: "include" must be a non-empty list.`,
+            `Valid sections: ${ALL_SECTIONS.join(', ')}.`,
+          );
+        }
+        for (const v of include) {
+          if (!ALL_SECTIONS.includes(v as ArtifactSection)) {
+            throw new WondevError(
+              `customTargets.${name}: unknown section "${String(v)}" in "include".`,
+              `Valid sections: ${ALL_SECTIONS.join(', ')}.`,
+            );
+          }
+        }
+        single.include = include as ArtifactSection[];
+      }
+      return single;
     }
     case 'rule-dir': {
       const ext = typeof obj['ext'] === 'string' && obj['ext'].trim() !== ''

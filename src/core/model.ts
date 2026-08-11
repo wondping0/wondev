@@ -120,12 +120,25 @@ export interface RuleDirFrontmatterMap {
   globsFormat?: 'array' | 'csv';
 }
 
+/** The artifact types a flattened target can carry. */
+export type ArtifactSection = 'memory' | 'skills' | 'commands' | 'agents';
+
+export const ALL_SECTIONS: readonly ArtifactSection[] = ['memory', 'skills', 'commands', 'agents'];
+
 export interface SingleFileTarget {
   engine: 'single-file';
   /** Output path relative to project root. */
   path: string;
   /** Defaults to `region` so hand-written content in the same file survives. */
   mode?: WriteMode;
+  /**
+   * Which artifact types to include. Defaults to all of them.
+   *
+   * Exists because some hosts have their own mechanism for part of this. A tool that
+   * discovers skills itself does not need them repeated in its context file, and repeating
+   * them is not neutral -- it is paid for on every turn.
+   */
+  include?: ArtifactSection[];
 }
 
 export interface RuleDirTarget {

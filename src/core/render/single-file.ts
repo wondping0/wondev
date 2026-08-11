@@ -16,11 +16,13 @@ export function renderSingleFile(
   target: SingleFileTarget,
   flattened?: string,
 ): RenderedFile[] {
-  return [
-    {
-      path: target.path,
-      content: flattened ?? flattenProject(project),
-      mode: target.mode ?? 'region',
-    },
-  ];
+  // The memo only applies to targets carrying everything. A target that narrows `include`
+  // produces different bytes, so reusing the shared flatten for it would silently give it
+  // content it asked not to have.
+  const content =
+    target.include === undefined
+      ? (flattened ?? flattenProject(project))
+      : flattenProject(project, target.include);
+
+  return [{ path: target.path, content, mode: target.mode ?? 'region' }];
 }

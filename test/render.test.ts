@@ -450,3 +450,47 @@ describe('skill bodies follow the same rule as memory', () => {
     expect(memory).toContain('**graphify**');
   });
 });
+
+describe('flatSlug rejects what Windows rejects', () => {
+  it('replaces characters that are legal on POSIX and illegal on Windows', () => {
+    expect(flatSlug('a:b')).toBe('a-b');
+    expect(flatSlug('what?')).toBe('what');
+    expect(flatSlug('a*b|c"d<e>f')).toBe('a-b-c-d-e-f');
+  });
+
+  it('collapses runs and trims, so no filename ends in a separator', () => {
+    expect(flatSlug('a // b')).toBe('a-b');
+    expect(flatSlug(':::')).toBe('untitled');
+  });
+});
+
+describe('single-file include', () => {
+  it('carries everything by default', () => {
+    const out = renderTarget(project, named('agents'))[0]!.content;
+    expect(out).toContain('# Project memory');
+    expect(out).toContain('# Skills');
+    expect(out).toContain('# Commands');
+  });
+
+  it('omits the sections a target opts out of', () => {
+    const out = renderTarget(project, {
+      name: 'memory-only',
+      target: { engine: 'single-file', path: 'X.md', include: ['memory'] },
+    })[0]!.content;
+    expect(out).toContain('# Project memory');
+    expect(out).not.toContain('# Skills');
+    expect(out).not.toContain('# Commands');
+  });
+
+  it('does not reuse the shared flatten memo for a narrowed target', () => {
+    // The memo is byte-identical content shared across single-file targets. Handing it to a
+    // target that asked for less would silently give it everything.
+    const memo = flattenProject(project);
+    const out = renderTarget(
+      project,
+      { name: 'memory-only', target: { engine: 'single-file', path: 'X.md', include: ['memory'] } },
+      memo,
+    )[0]!.content;
+    expect(out).not.toContain('# Skills');
+  });
+});

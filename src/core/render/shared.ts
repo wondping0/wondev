@@ -1,4 +1,5 @@
-import type { Command, MemoryDoc, Project, Skill } from '../model.js';
+import type { ArtifactSection, Command, MemoryDoc, Project, Skill } from '../model.js';
+import { ALL_SECTIONS } from '../model.js';
 import { estimateTokens, formatTokens } from '../../util/tokens.js';
 
 /**
@@ -170,15 +171,19 @@ const ON_DEMAND_PREAMBLE =
  * loaded in full on every turn and a large set of documents would otherwise be paid for
  * continuously to be useful occasionally.
  */
-export function flattenProject(project: Project): string {
+export function flattenProject(
+  project: Project,
+  include: readonly ArtifactSection[] = ALL_SECTIONS,
+): string {
+  const want = new Set(include);
   const out: string[] = [`# ${project.name}`];
 
   out.push(
     'Guidance for AI coding agents working in this repository.',
   );
 
-  const always = project.memory.filter((d) => d.always);
-  const onDemand = project.memory.filter((d) => !d.always);
+  const always = want.has('memory') ? project.memory.filter((d) => d.always) : [];
+  const onDemand = want.has('memory') ? project.memory.filter((d) => !d.always) : [];
 
   if (always.length > 0) {
     out.push('# Project memory');
@@ -195,8 +200,8 @@ export function flattenProject(project: Project): string {
   // trigger matches; copying every one of them into a file read on every turn charges for
   // all of them to be useful occasionally. Measured on a real project: 95% of AGENTS.md was
   // skill bodies. `inline: true` opts the short universal ones back in.
-  const inlineSkills = project.skills.filter((s) => s.inline);
-  const listedSkills = project.skills.filter((s) => !s.inline);
+  const inlineSkills = want.has('skills') ? project.skills.filter((s) => s.inline) : [];
+  const listedSkills = want.has('skills') ? project.skills.filter((s) => !s.inline) : [];
 
   if (inlineSkills.length > 0) {
     out.push('# Skills');
@@ -214,7 +219,7 @@ export function flattenProject(project: Project): string {
     out.push(onDemandSkillIndex(listedSkills));
   }
 
-  if (project.commands.length > 0) {
+  if (want.has('commands') && project.commands.length > 0) {
     out.push('# Commands');
     out.push('Repeatable prompts a user may invoke by name.');
     for (const command of project.commands) out.push(commandSection(command));
@@ -223,7 +228,7 @@ export function flattenProject(project: Project): string {
   // Listed, never inlined. Subagents are a delegation mechanism only some hosts implement;
   // a host without one cannot act on the body, and a host with one loads the file itself.
   // Either way the useful part here is knowing which specialists exist.
-  if (project.agents.length > 0) {
+  if (want.has('agents') && project.agents.length > 0) {
     out.push('# Subagents');
     out.push(
       'Specialists this project defines. Hosts that support delegation load them from the paths below.',
@@ -246,5 +251,15 @@ export function flattenProject(project: Project): string {
  * this that becomes a generated filename with spaces in someone's repository.
  */
 export function flatSlug(slug: string): string {
-  return slug.replace(/[/\\]/g, '-').replace(/\s+/g, '-');
+  return (
+    slug
+      .replace(/[/\\]/g, '-')
+      .replace(/\s+/g, '-')
+      // `< > : " | ? *` are legal in a POSIX filename and rejected outright by Windows. A
+      // slug containing one produces a repository that cannot be checked out on Windows at
+      // all -- a failure the author never sees, because their own checkout works.
+      .replace(/["<>:|?*]/g, '-')
+      .replace(/-{2,}/g, '-')
+      .replace(/^-|-$/g, '') || 'untitled'
+  );
 }

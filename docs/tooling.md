@@ -132,6 +132,35 @@ agents; the host's own configuration stays yours.
 That is a boundary, not a gap. A compiler that also owned your settings file would be a
 worse compiler.
 
+## Why engines are not user-pluggable
+
+`customTargets` lets you point any of the four built-in engines at any path, which covers
+agents that do not exist yet. It does not let you supply a *new* engine, and that is a
+security decision rather than an unfinished feature.
+
+wondev's threat model treats everything under `.wondev/` as untrusted input — it is a
+directory in a repository, and a repository can come from anywhere. Loading a JavaScript
+module named by `wondev.yaml` would mean executing code from that untrusted input on every
+build, in exchange for a format nobody has yet needed. A cloned repository would be able to
+run arbitrary code the moment someone typed `wondev build`.
+
+If you need an output shape the four engines cannot produce, open an issue. A new engine is
+a small pull request with a golden fixture; an arbitrary code-loading mechanism is a
+permanent hole.
+
+What you *can* narrow is what a target carries:
+
+```yaml
+customTargets:
+  memory-only:
+    engine: single-file
+    path: .someagent/context.md
+    include: [memory]      # skip skills, commands, agents
+```
+
+Useful when a host discovers skills itself — repeating them in its context file is not
+neutral, it is paid for on every turn.
+
 ## Adding one
 
 ```bash
