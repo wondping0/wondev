@@ -305,6 +305,7 @@ export async function applyPlan(
   root: string,
   plan: PlanItem[],
   manifest: Manifest,
+  builtTargets?: Set<string>,
 ): Promise<ApplyResult> {
   const written = plan.filter((item) => item.action !== 'unchanged');
 
@@ -319,8 +320,16 @@ export async function applyPlan(
     manifest.files[item.path] = { hash: item.ownedHash, target: item.target, mode: item.mode };
   }
 
+  // A build that rendered only some targets can only speak for those targets. Without this,
+  // `build --target claude` sees every other target's output as unrendered, concludes it is
+  // stale, and deletes it -- turning a narrowing flag into a destructive one.
   const rendered = new Set(plan.map((p) => p.path));
-  const stale = Object.keys(manifest.files).filter((p) => !rendered.has(p));
+  const stale = Object.keys(manifest.files).filter((p) => {
+    if (rendered.has(p)) return false;
+    if (!builtTargets) return true;
+    const entry = manifest.files[p];
+    return entry !== undefined && builtTargets.has(entry.target);
+  });
   const removed: RemovedFile[] = [];
   for (const p of stale) {
     const entry = manifest.files[p];

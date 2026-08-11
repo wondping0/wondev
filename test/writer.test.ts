@@ -145,6 +145,34 @@ describe('stale output', () => {
     const manifest = await loadManifest(root);
     expect(manifest.files['.claude/commands/review.md']).toBeUndefined();
   });
+
+  // A narrowed build only renders one target, so every other target's output looks
+  // unrendered to the stale sweep. Without a guard it deletes all of it -- `build --target`
+  // becomes a destructive command that reads like a preview.
+  it('leaves other targets alone when only one target is built', async () => {
+    await seedProject(root, ['claude', 'agents']);
+    await build();
+    expect(await exists(root, 'AGENTS.md')).toBe(true);
+
+    await build({ target: 'claude' });
+
+    expect(await exists(root, 'AGENTS.md')).toBe(true);
+    expect(await exists(root, 'CLAUDE.md')).toBe(true);
+    const manifest = await loadManifest(root);
+    expect(manifest.files['AGENTS.md']).toBeDefined();
+  });
+
+  it('still removes stale output of a target that was built', async () => {
+    await seedProject(root, ['claude', 'agents']);
+    await build();
+
+    const fs = await import('node:fs/promises');
+    await fs.rm(`${root}/.wondev/commands/review.md`);
+    await build({ target: 'claude' });
+
+    expect(await exists(root, '.claude/commands/review.md')).toBe(false);
+    expect(await exists(root, 'AGENTS.md')).toBe(true);
+  });
 });
 
 describe('clean', () => {

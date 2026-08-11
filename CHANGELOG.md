@@ -11,9 +11,18 @@ a patch, because it makes `wondev check` fail in every project that upgrades.
 
 ## [Unreleased]
 
-## [0.1.1] - 2026-08-11
+## [0.1.2] - 2026-08-11
+
+0.1.1 was prepared and tagged locally but never published; its change is included here.
 
 ### Fixed
+
+- **`build --target <name>` deleted every other target's generated output.** The stale-file
+  sweep removes any file the current render did not produce, and a narrowed build renders
+  only one target — so `wondev build --target claude` deleted `AGENTS.md`, `.cursor/rules/`
+  and everything else, reporting it as a routine removal. A partial build now retires files
+  only for the targets it actually built. If you have run `build --target`, re-run a full
+  `wondev build` to restore what went missing.
 
 - `require('wondev/package.json')` threw `ERR_PACKAGE_PATH_NOT_EXPORTED`. The `exports` map
   now includes the `./package.json` subpath, which bundlers and tooling routinely read.

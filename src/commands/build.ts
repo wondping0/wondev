@@ -41,7 +41,9 @@ export async function runBuild(root: string, options: BuildOptions = {}): Promis
     return;
   }
 
-  const { written, removed } = await applyPlan(root, plan, manifest);
+  // Only a full build may retire another target's files. See applyPlan.
+  const builtTargets = options.target ? new Set(targets.map((t) => t.name)) : undefined;
+  const { written, removed } = await applyPlan(root, plan, manifest, builtTargets);
 
   if (!options.quiet) {
     printPlan(plan, false);
