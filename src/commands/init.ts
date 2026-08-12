@@ -8,7 +8,7 @@ import { recordTemplates, templatesDir } from '../core/templates.js';
 import { WondevError } from '../util/errors.js';
 import { wondevVersion } from '../util/version.js';
 import { copyDir, pathExists, writeFileAtomic } from '../util/fs.js';
-import { info, plural, style, success } from '../util/log.js';
+import { info, plural, style, success, warn } from '../util/log.js';
 import { runBuild } from './build.js';
 
 export interface InitOptions {
@@ -27,6 +27,8 @@ export async function runInit(root: string, options: InitOptions = {}): Promise<
       'Delete it or re-run with --force to overwrite the source templates.',
     );
   }
+
+  await warnIfAlreadyConfigured(root);
 
   const targets = chooseTargets(options);
   const templates = templatesDir();
@@ -60,6 +62,47 @@ export async function runInit(root: string, options: InitOptions = {}): Promise<
 
   info('');
   info(`Next: edit ${style.cyan(`${WONDEV_DIR}/memory/architecture.md`)}, then run ${style.cyan('wondev build')}.`);
+}
+
+/** The files and directories `adopt` knows how to read back into `.wondev/`. */
+const EXISTING_CONFIG = [
+  'CLAUDE.md',
+  'AGENTS.md',
+  'GEMINI.md',
+  'CONVENTIONS.md',
+  '.github/copilot-instructions.md',
+  '.claude',
+  '.cursor/rules',
+];
+
+/**
+ * Say something when the project already has agent config.
+ *
+ * `init` scaffolds templates beside whatever is there and touches none of it, which sounds
+ * safe and quietly is not: the existing skills and instructions stay outside `.wondev/`, so
+ * wondev never compiles them, and they reach no target they did not already reach. The user
+ * ends up with two sets of agent knowledge and only one of them maintained.
+ *
+ * A warning rather than a refusal -- starting fresh next to an old file is a legitimate
+ * choice, and nothing here is destructive. But it should be a choice, not a surprise.
+ */
+async function warnIfAlreadyConfigured(root: string): Promise<void> {
+  const found: string[] = [];
+  for (const rel of EXISTING_CONFIG) {
+    if (await pathExists(path.join(root, rel))) found.push(rel);
+  }
+  if (found.length === 0) return;
+
+  warn(`This project already has agent config: ${found.join(', ')}`);
+  info(
+    style.dim(
+      [
+        `  \`wondev adopt\` reads it into ${WONDEV_DIR}/ so wondev compiles it for every target.`,
+        `  \`init\` scaffolds templates alongside it instead, leaving yours unmanaged.`,
+      ].join('\n'),
+    ),
+  );
+  info('');
 }
 
 function chooseTargets(options: InitOptions): string[] {

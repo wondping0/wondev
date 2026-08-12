@@ -158,8 +158,28 @@ customTargets:
     include: [memory]      # skip skills, commands, agents
 ```
 
+`include` works on every engine that can meaningfully narrow — `single-file`, `rule-dir`,
+and `claude`.
+
 Useful when a host discovers skills itself — repeating them in its context file is not
 neutral, it is paid for on every turn.
+
+## A repository per project
+
+wondev works on one project root. For a monorepo or a group of sibling service repositories,
+run it in each one:
+
+```bash
+wondev adopt --cwd ./dashdat-backend
+wondev adopt --cwd ./dashdat-frontend
+```
+
+Each repository gets its own `.wondev/`, which is the right shape rather than a limitation:
+a service's own conventions belong with the service. Copying them into a coordinating
+repository duplicates content that then goes stale in one of the two places.
+
+What belongs in the coordinating repository is what no single service owns — the contracts
+between them, the decisions, the map.
 
 ## Adding one
 

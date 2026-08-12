@@ -1,4 +1,5 @@
 import type { Project, RenderedFile, RuleDirTarget } from '../model.js';
+import { ALL_SECTIONS } from '../model.js';
 import { stringifyFrontmatter } from '../frontmatter.js';
 import { commandSection, flatSlug, memorySection, skillSection } from './shared.js';
 
@@ -11,8 +12,9 @@ import { commandSection, flatSlug, memorySection, skillSection } from './shared.
 export function renderRuleDir(project: Project, target: RuleDirTarget): RenderedFile[] {
   const files: RenderedFile[] = [];
   const dir = target.path.replace(/\/+$/, '');
+  const want = new Set(target.include ?? ALL_SECTIONS);
 
-  for (const doc of project.memory) {
+  for (const doc of want.has('memory') ? project.memory : []) {
     files.push({
       path: `${dir}/memory-${flatSlug(doc.slug)}${target.ext}`,
       content: withFrontmatter(target, {
@@ -24,7 +26,7 @@ export function renderRuleDir(project: Project, target: RuleDirTarget): Rendered
     });
   }
 
-  for (const skill of project.skills) {
+  for (const skill of want.has('skills') ? project.skills : []) {
     files.push({
       path: `${dir}/skill-${skill.name}${target.ext}`,
       content: withFrontmatter(target, {
@@ -37,7 +39,7 @@ export function renderRuleDir(project: Project, target: RuleDirTarget): Rendered
     });
   }
 
-  for (const command of project.commands) {
+  for (const command of want.has('commands') ? project.commands : []) {
     files.push({
       path: `${dir}/command-${command.name}${target.ext}`,
       content: withFrontmatter(target, {

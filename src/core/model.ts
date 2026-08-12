@@ -148,6 +148,8 @@ export interface RuleDirTarget {
   /** File extension including the dot, e.g. `.mdc`. */
   ext: string;
   frontmatter?: RuleDirFrontmatterMap;
+  /** Which artifact types to write. Defaults to all of them. */
+  include?: ArtifactSection[];
 }
 
 export interface ClaudeTarget {
@@ -166,6 +168,8 @@ export interface ClaudeTarget {
    * Optional, so a custom claude target written before 1.0 keeps working.
    */
   rules?: string;
+  /** Which artifact types to write. Defaults to all of them. */
+  include?: ArtifactSection[];
 }
 
 /** A self-contained HTML guide, rendered for people rather than for an agent. */

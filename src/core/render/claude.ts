@@ -1,4 +1,5 @@
 import type { ClaudeTarget, MemoryDoc, Project, RenderedFile } from '../model.js';
+import { ALL_SECTIONS } from '../model.js';
 import { stringifyFrontmatter } from '../frontmatter.js';
 import { flatSlug, memorySection, onDemandMemoryIndex } from './shared.js';
 
@@ -11,6 +12,7 @@ import { flatSlug, memorySection, onDemandMemoryIndex } from './shared.js';
  */
 export function renderClaude(project: Project, target: ClaudeTarget): RenderedFile[] {
   const files: RenderedFile[] = [];
+  const want = new Set(target.include ?? ALL_SECTIONS);
 
   files.push({
     path: target.memory,
@@ -19,7 +21,7 @@ export function renderClaude(project: Project, target: ClaudeTarget): RenderedFi
   });
 
   const skillsDir = target.skills.replace(/\/+$/, '');
-  for (const skill of project.skills) {
+  for (const skill of want.has('skills') ? project.skills : []) {
     const data: Record<string, unknown> = {
       name: skill.name,
       description: skill.description,
@@ -46,7 +48,7 @@ export function renderClaude(project: Project, target: ClaudeTarget): RenderedFi
   // never asked wondev to own.
   if (target.agents) {
     const agentsDir = target.agents.replace(/\/+$/, '');
-    for (const agent of project.agents) {
+    for (const agent of want.has('agents') ? project.agents : []) {
       const data: Record<string, unknown> = {
         name: agent.name,
         description: agent.description,
@@ -66,7 +68,7 @@ export function renderClaude(project: Project, target: ClaudeTarget): RenderedFi
   if (target.rules) {
     const rulesDir = target.rules.replace(/\/+$/, '');
     for (const doc of project.memory) {
-      if (!doc.globs?.length) continue;
+      if (!doc.globs?.length || !want.has('memory')) continue;
       const data: Record<string, unknown> = { paths: doc.globs };
       if (doc.description) data['description'] = doc.description;
       files.push({
@@ -78,7 +80,7 @@ export function renderClaude(project: Project, target: ClaudeTarget): RenderedFi
   }
 
   const commandsDir = target.commands.replace(/\/+$/, '');
-  for (const command of project.commands) {
+  for (const command of want.has('commands') ? project.commands : []) {
     files.push({
       path: `${commandsDir}/${command.name}.md`,
       content: stringifyFrontmatter({ description: command.description }, command.body),

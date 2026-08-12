@@ -552,3 +552,64 @@ describe('path-scoped memory becomes a Claude Code rule', () => {
     expect(legacy.find((f) => f.path === 'CLAUDE.md')?.content).toContain('SCOPED BODY');
   });
 });
+
+describe('include narrows every engine, not only single-file', () => {
+  const full: Project = {
+    name: 'demo',
+    memory: [
+      { slug: 'a', title: 'A', always: true, extra: {}, globs: ['src/**'], body: 'MEM', sourcePath: '.wondev/memory/a.md' },
+    ],
+    skills: [
+      { name: 's', description: 'd', inline: true, attachments: [], body: 'SKILL', sourcePath: '.wondev/skills/s/SKILL.md' },
+    ],
+    commands: [{ name: 'c', description: 'd', body: 'CMD', sourcePath: '.wondev/commands/c.md' }],
+    agents: [{ name: 'g', description: 'd', body: 'AGENT', sourcePath: '.wondev/agents/g.md' }],
+  };
+
+  it('narrows a rule-dir target', () => {
+    const files = renderTarget(full, {
+      name: 'narrow',
+      target: { engine: 'rule-dir', path: '.x/rules', ext: '.md', include: ['memory'] },
+    });
+    expect(files.map((f) => f.path)).toEqual(['.x/rules/memory-a.md']);
+  });
+
+  it('narrows a claude target, including its rules directory', () => {
+    const files = renderTarget(full, {
+      name: 'narrow',
+      target: {
+        engine: 'claude',
+        memory: 'CLAUDE.md',
+        skills: '.claude/skills',
+        commands: '.claude/commands',
+        agents: '.claude/agents',
+        rules: '.claude/rules',
+        include: ['commands'],
+      },
+    });
+    const paths = files.map((f) => f.path);
+    expect(paths).toContain('.claude/commands/c.md');
+    expect(paths).not.toContain('.claude/skills/s/SKILL.md');
+    expect(paths).not.toContain('.claude/agents/g.md');
+    // Scoped memory is memory: excluding memory must exclude the rule file too.
+    expect(paths.some((p) => p.startsWith('.claude/rules/'))).toBe(false);
+  });
+
+  it('carries everything when include is absent', () => {
+    const files = renderTarget(full, {
+      name: 'wide',
+      target: {
+        engine: 'claude',
+        memory: 'CLAUDE.md',
+        skills: '.claude/skills',
+        commands: '.claude/commands',
+        agents: '.claude/agents',
+        rules: '.claude/rules',
+      },
+    });
+    const paths = files.map((f) => f.path);
+    expect(paths).toContain('.claude/skills/s/SKILL.md');
+    expect(paths).toContain('.claude/agents/g.md');
+    expect(paths).toContain('.claude/rules/a.md');
+  });
+});

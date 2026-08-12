@@ -11,6 +11,55 @@ a patch, because it makes `wondev check` fail in every project that upgrades.
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-08-12
+
+Generated output changes for projects whose documents use nested lists, underlined headings,
+or reference links. Run `wondev build` and commit the result.
+
+### Fixed
+
+- **Nested lists were flattened.** Every item rendered as a sibling, so a two-level procedure
+  lost the distinction between a step and its sub-steps — the structure a reader navigates by.
+
+- **List items spanning more than one line broke the list.** Indenting continuation text is
+  the ordinary way to write a long item; the renderer ended the list at the first wrapped
+  line, turning the item's own text into a stray paragraph and the list beneath it into a
+  second top-level list. On the vault this was tested against, that pattern appears eighteen
+  times and nested lists in the output went from two to six once it worked.
+
+- **Underlined (setext) headings** showed their `=====` as paragraph text. `---` is both a
+  thematic break and a setext underline, and which one it is now depends on whether a
+  paragraph precedes it.
+
+- **Reference-style links** printed raw, definitions included. They now resolve, and the
+  definition lines are removed.
+
+- Images no longer leak their `!`. They render as **links, never `<img>`** — the page's one
+  hard guarantee is that it makes no external request, and an image source is a request the
+  moment the page opens. The scheme allowlist applies to them too.
+
+- Task list markers and `~~strikethrough~~` render instead of showing their syntax.
+
+### Added
+
+- **`wondev init` says something when the project already has agent config**, naming what it
+  found and pointing at `adopt`. Scaffolding beside an existing `CLAUDE.md` is not
+  destructive, but it leaves that content outside `.wondev/` where wondev never compiles it —
+  two sets of agent knowledge, one of them maintained. A warning, not a refusal.
+
+- **`include` works on `rule-dir` and `claude` targets**, not only `single-file`. Excluding
+  `memory` from a claude target now also excludes its path-scoped rule files, since a scoped
+  memory document is still memory.
+
+- Tests for `init`, and the markdown renderer reaches 100% statement coverage.
+
+### Notes
+
+`adopt` across sibling repositories turned out not to be a missing feature: `--cwd` already
+does it, and one `.wondev/` per repository is the right shape. Copying a service's
+conventions into a coordinating repository duplicates content that then goes stale.
+Documented in `docs/tooling.md` rather than built.
+
 ## [1.0.1] - 2026-08-12
 
 Generated output is byte-identical to 1.0.0. Nothing needs rebuilding.

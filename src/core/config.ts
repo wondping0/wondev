@@ -234,6 +234,26 @@ function readCustomTargets(value: unknown): Record<string, Target> {
  * Target definitions come from user config, so every path is checked to stay inside the
  * project root before it can reach the writer.
  */
+/** Shared by every engine that can narrow what it carries. */
+function readInclude(name: string, value: unknown): ArtifactSection[] | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new WondevError(
+      `customTargets.${name}: "include" must be a non-empty list.`,
+      `Valid sections: ${ALL_SECTIONS.join(', ')}.`,
+    );
+  }
+  for (const v of value) {
+    if (!ALL_SECTIONS.includes(v as ArtifactSection)) {
+      throw new WondevError(
+        `customTargets.${name}: unknown section "${String(v)}" in "include".`,
+        `Valid sections: ${ALL_SECTIONS.join(', ')}.`,
+      );
+    }
+  }
+  return value as ArtifactSection[];
+}
+
 export function validateTarget(name: string, raw: unknown): Target {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
     throw new WondevError(`customTargets.${name}: must be a mapping.`);
@@ -266,24 +286,8 @@ export function validateTarget(name: string, raw: unknown): Target {
         path: requirePath('path'),
         mode: (mode as WriteMode | undefined) ?? 'region',
       };
-      const include = obj['include'];
-      if (include !== undefined && include !== null) {
-        if (!Array.isArray(include) || include.length === 0) {
-          throw new WondevError(
-            `customTargets.${name}: "include" must be a non-empty list.`,
-            `Valid sections: ${ALL_SECTIONS.join(', ')}.`,
-          );
-        }
-        for (const v of include) {
-          if (!ALL_SECTIONS.includes(v as ArtifactSection)) {
-            throw new WondevError(
-              `customTargets.${name}: unknown section "${String(v)}" in "include".`,
-              `Valid sections: ${ALL_SECTIONS.join(', ')}.`,
-            );
-          }
-        }
-        single.include = include as ArtifactSection[];
-      }
+      const singleInclude = readInclude(name, obj['include']);
+      if (singleInclude) single.include = singleInclude;
       return single;
     }
     case 'rule-dir': {
@@ -294,6 +298,8 @@ export function validateTarget(name: string, raw: unknown): Target {
         throw new WondevError(`customTargets.${name}: "ext" must start with a dot (got "${ext}").`);
       }
       const target: RuleDirTarget = { engine: 'rule-dir', path: requirePath('path'), ext };
+      const ruleInclude = readInclude(name, obj['include']);
+      if (ruleInclude) target.include = ruleInclude;
       const fm = obj['frontmatter'];
       if (fm !== undefined) {
         if (typeof fm !== 'object' || fm === null || Array.isArray(fm)) {
@@ -313,6 +319,9 @@ export function validateTarget(name: string, raw: unknown): Target {
       // Optional: a claude target defined before subagents existed stays valid, and simply
       // produces no agent files.
       if (obj['agents'] !== undefined) claude.agents = requirePath('agents');
+      if (obj['rules'] !== undefined) claude.rules = requirePath('rules');
+      const claudeInclude = readInclude(name, obj['include']);
+      if (claudeInclude) claude.include = claudeInclude;
       return claude;
     }
     case 'html':
