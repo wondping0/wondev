@@ -189,3 +189,93 @@ describe('html engine', () => {
     expect(file.content).toContain('prefers-color-scheme:dark');
   });
 });
+
+describe('markdown structures that used to be flattened or leaked', () => {
+  it('nests a list inside the item it hangs from', () => {
+    // Flattening this loses the distinction between a step and its sub-steps, which is the
+    // structure a reader navigates by.
+    expect(markdownToHtml('- one\n  - a\n  - b\n- two')).toBe(
+      '<ul><li>one<ul><li>a</li><li>b</li></ul></li><li>two</li></ul>',
+    );
+  });
+
+  it('nests an unordered list inside an ordered one', () => {
+    expect(markdownToHtml('1. step\n   - detail\n2. next')).toBe(
+      '<ol><li>step<ul><li>detail</li></ul></li><li>next</li></ol>',
+    );
+  });
+
+  it('starts a new list when the marker changes at the same depth', () => {
+    const out = markdownToHtml('- bullet\n1. number');
+    expect(out).toContain('<ul><li>bullet</li></ul>');
+    expect(out).toContain('<ol><li>number</li></ol>');
+  });
+
+  it('renders task list markers instead of literal brackets', () => {
+    expect(markdownToHtml('- [ ] todo\n- [x] done')).toBe('<ul><li>☐ todo</li><li>☑ done</li></ul>');
+  });
+
+  it('turns an underlined line into a heading rather than showing the underline', () => {
+    expect(markdownToHtml('Title\n=====')).toBe('<h1>Title</h1>');
+    expect(markdownToHtml('Sub\n---')).toBe('<h2>Sub</h2>');
+  });
+
+  it('still treats --- as a rule when no paragraph precedes it', () => {
+    // `---` is both a thematic break and a setext underline; which one depends on context.
+    expect(markdownToHtml('para\n\n---\n\nafter')).toContain('<hr>');
+  });
+
+  it('resolves reference links and does not print their definitions', () => {
+    const out = markdownToHtml('[text][ref] and [ref]\n\n[ref]: https://example.com');
+    expect(out).toContain('<a href="https://example.com">text</a>');
+    expect(out).toContain('<a href="https://example.com">ref</a>');
+    expect(out).not.toContain('[ref]:');
+  });
+
+  it('leaves a reference with no definition as visible text', () => {
+    expect(markdownToHtml('[text][missing]')).toContain('[text][missing]');
+  });
+
+  it('renders an image as a link, never as an <img> that would fetch', () => {
+    // The page's one hard guarantee is that it makes no external request. An image source
+    // is a request the moment the page opens, before anyone chooses to follow anything.
+    const out = markdownToHtml('![alt](https://example.com/a.png)');
+    expect(out).toContain('<a href="https://example.com/a.png">alt</a>');
+    expect(out).not.toContain('<img');
+    expect(out).not.toContain('!<a');
+  });
+
+  it('applies the scheme allowlist to images too', () => {
+    expect(markdownToHtml('![x](javascript:alert(1))')).not.toContain('<a href=');
+  });
+
+  it('renders strikethrough', () => {
+    expect(markdownToHtml('~~gone~~')).toContain('<del>gone</del>');
+  });
+});
+
+describe('list items that span more than one line', () => {
+  it('keeps a wrapped line with the item it belongs to', () => {
+    // Indenting continuation text is the ordinary way to write a list item longer than one
+    // line. Without support the list ended at the wrapped line, leaving a stray paragraph
+    // and a second list that should have been nested inside the first.
+    const md = ['- parent whose text', '  wraps:', '  - nested', '- second'].join('\n');
+    expect(markdownToHtml(md)).toBe(
+      '<ul><li>parent whose text wraps:<ul><li>nested</li></ul></li><li>second</li></ul>',
+    );
+  });
+
+  it('does not swallow a fenced block as continuation text', () => {
+    // Treating a fence as prose would destroy the code block, which is worse than ending
+    // the list at it.
+    const out = markdownToHtml(['- item', '', '```js', 'x', '```'].join('\n'));
+    expect(out).toContain('<ul><li>item</li></ul>');
+    expect(out).toContain('<pre class="lang-js"><code>x</code></pre>');
+  });
+
+  it('ends the list at an unindented line', () => {
+    const out = markdownToHtml('- item\nnot part of the list');
+    expect(out).toContain('<ul><li>item</li></ul>');
+    expect(out).toContain('<p>not part of the list</p>');
+  });
+});
