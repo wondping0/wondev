@@ -14,7 +14,7 @@ export interface DoctorOptions {
   online?: boolean;
 }
 
-interface Finding {
+export interface Finding {
   level: 'ok' | 'warn' | 'error';
   message: string;
 }
@@ -31,7 +31,7 @@ const MIN_NODE_MAJOR = 20;
 export async function runDoctor(root: string, options: DoctorOptions = {}): Promise<void> {
   const findings: Finding[] = [];
 
-  findings.push(checkNode());
+  findings.push(nodeFinding(process.versions.node));
   findings.push(...(await checkProject(root)));
   if (options.online) findings.push(await checkForUpdate());
 
@@ -53,15 +53,53 @@ export async function runDoctor(root: string, options: DoctorOptions = {}): Prom
   success(warnings > 0 ? `no problems, ${warnings} warning(s)` : 'no problems found');
 }
 
-function checkNode(): Finding {
-  const major = Number(process.versions.node.split('.')[0]);
+/**
+ * Judge a Node version string.
+ *
+ * Pure, and takes the version rather than reading `process.versions`, for the same reason
+ * `assertSchemaCurrent` is a separate function: the failing branch cannot be reached from a
+ * process that is, by definition, running a supported Node. A branch first executed on the
+ * day it matters is a branch nobody has checked.
+ */
+export function nodeFinding(version: string): Finding {
+  const major = Number(version.split('.')[0]);
   if (Number.isNaN(major) || major < MIN_NODE_MAJOR) {
     return {
       level: 'error',
-      message: `Node ${process.versions.node} is too old; wondev needs ${MIN_NODE_MAJOR} or newer.`,
+      message: `Node ${version} is too old; wondev needs ${MIN_NODE_MAJOR} or newer.`,
     };
   }
-  return { level: 'ok', message: `Node ${process.versions.node}` };
+  return { level: 'ok', message: `Node ${version}` };
+}
+
+/**
+ * Judge a project's source schema against this build.
+ *
+ * Also pure, and also for a branch that cannot otherwise run: `loadConfig` refuses a schema
+ * below 1 or above the current version, so while `SOURCE_SCHEMA_VERSION` is 1 the "older
+ * than this build" case is unreachable through the command. It becomes reachable the moment
+ * the constant moves, which is exactly when it must already work.
+ */
+export function schemaFinding(schema: number, current: number = SOURCE_SCHEMA_VERSION): Finding {
+  if (schema < current) {
+    return {
+      level: 'error',
+      message: `Source schema ${schema} is older than ${current}. Run \`wondev migrate\`.`,
+    };
+  }
+  return { level: 'ok', message: `source schema ${schema}` };
+}
+
+/** Describe a deprecated target, naming its replacement when it has one. */
+export function deprecationFinding(
+  name: string,
+  deprecated: { since: string; replacedBy?: string },
+): Finding {
+  const replacement = deprecated.replacedBy ? ` Use "${deprecated.replacedBy}".` : '';
+  return {
+    level: 'warn',
+    message: `target "${name}" is deprecated since ${deprecated.since}.${replacement}`,
+  };
 }
 
 async function checkProject(root: string): Promise<Finding[]> {
@@ -79,24 +117,11 @@ async function checkProject(root: string): Promise<Finding[]> {
   }
   findings.push({ level: 'ok', message: `config loads, ${config.targets.length} target(s)` });
 
-  if (config.schema < SOURCE_SCHEMA_VERSION) {
-    findings.push({
-      level: 'error',
-      message: `Source schema ${config.schema} is older than ${SOURCE_SCHEMA_VERSION}. Run \`wondev migrate\`.`,
-    });
-  } else {
-    findings.push({ level: 'ok', message: `source schema ${config.schema}` });
-  }
+  findings.push(schemaFinding(config.schema));
 
   for (const name of config.targets) {
     const entry = BUILTIN_TARGETS[resolveAlias(name)];
-    if (entry?.deprecated) {
-      const replacement = entry.deprecated.replacedBy ? ` Use "${entry.deprecated.replacedBy}".` : '';
-      findings.push({
-        level: 'warn',
-        message: `target "${name}" is deprecated since ${entry.deprecated.since}.${replacement}`,
-      });
-    }
+    if (entry?.deprecated) findings.push(deprecationFinding(name, entry.deprecated));
   }
 
   const { issues } = await loadProject(root, config.name);

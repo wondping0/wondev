@@ -96,3 +96,24 @@ at the old location, and `wondev migrate` is what moves them.
 
 Do not set `pathVerified` because the tests pass. The tests check wondev's own behaviour;
 they cannot check what a vendor decided last month.
+
+## Coverage
+
+`npm run verify` measures coverage and fails below the thresholds in `vitest.config.ts`.
+
+They are floors, not targets. They exist because coverage was never measured before 1.0.1,
+and measuring it found `list` at zero — a command that had shipped in two releases with no
+test at all. That is the same gap that let a runaway rebuild loop live in `watch`: not a
+number nobody looked at, but a whole file nobody had noticed was untested.
+
+Raise a threshold when the real figure moves up. Do not lower one to make a red run green;
+that converts a signal into noise, which is how the gap appeared in the first place.
+
+Two files read low for reasons that are not gaps:
+
+- `watch.ts` is a long-running process tested by spawning the real CLI, which v8 coverage
+  cannot observe from inside the test runner.
+- Branches that cannot be reached from a running process — a Node version below the minimum,
+  a source schema older than this build — are extracted as pure functions and tested
+  directly. `assertSchemaCurrent`, `nodeFinding`, and `schemaFinding` all exist for that
+  reason. A branch first executed on the day it matters is a branch nobody has checked.

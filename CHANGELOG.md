@@ -11,6 +11,38 @@ a patch, because it makes `wondev check` fail in every project that upgrades.
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-08-12
+
+Generated output is byte-identical to 1.1.0. Nothing needs rebuilding.
+
+### Added
+
+- **Coverage is measured by `npm run verify` and enforced by thresholds**, so an untested
+  command fails the run instead of quietly lowering an average nobody reads. Documented in
+  `CONTRIBUTING.md` as floors, not targets.
+
+- **`doctor` reaches 100%** — statements, branches, functions, and lines. Two of its findings
+  could not be reached from a running process at all: a Node version below the minimum, and
+  a source schema older than this build, which `loadConfig` refuses before `doctor` ever sees
+  it. Both are now pure functions (`nodeFinding`, `schemaFinding`) tested directly, following
+  the precedent `assertSchemaCurrent` set. A branch first executed on the day it matters is a
+  branch nobody has checked.
+
+- **`cli.ts` went from 0% to 82%.** It ran `main()` on import, so no test could load it and
+  the only thing exercising 334 lines of argument parsing and dispatch was a child process
+  the coverage tool cannot see. It now guards the auto-run behind an entry-point check and
+  exports `main` and `reportFailure`, and every command's wiring is tested in-process.
+
+- More `list` coverage: sections that are absent rather than empty, and a memory document
+  with no description.
+
+### Notes
+
+Counting is deliberately honest: `src/**` is measured in full, including files no test
+imports, because the point is to see what is untested rather than to average over whatever
+happened to load. `watch.ts` reads at ~4% for a real reason — it is tested by spawning the
+CLI, which v8 cannot observe from inside the runner.
+
 ## [1.1.0] - 2026-08-12
 
 Generated output changes for projects whose documents use nested lists, underlined headings,

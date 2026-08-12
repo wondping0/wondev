@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import path from 'node:path';
 import { parseArgs } from 'node:util';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { BUILTIN_TARGETS, TARGET_ALIASES, targetsAddedSince } from './core/registry.js';
 import { isWondevError, WondevError } from './util/errors.js';
 import { readFileIfExists } from './util/fs.js';
@@ -150,7 +150,13 @@ async function listTargets(root: string, onlyNew: boolean, verbose = false): Pro
   info(style.dim('Anything else: add it under `customTargets` in .wondev/wondev.yaml.'));
 }
 
-async function main(argv: string[]): Promise<number> {
+/**
+ * Parse arguments and dispatch. Exported so it can be tested in-process.
+ *
+ * Returns an exit code rather than calling `process.exit`, so a caller — including a test —
+ * observes the outcome instead of losing the process.
+ */
+export async function main(argv: string[]): Promise<number> {
   const { values, positionals } = parseArgs({
     args: argv,
     allowPositionals: true,
@@ -317,19 +323,39 @@ async function main(argv: string[]): Promise<number> {
   }
 }
 
-main(process.argv.slice(2))
-  .then((code) => {
-    process.exitCode = code;
-  })
-  .catch((err: unknown) => {
-    if (isWondevError(err)) {
-      error(err.message);
-      if (err.hint) info(style.dim(err.hint));
-    } else if (err instanceof Error && err.name === 'ERR_PARSE_ARGS_UNKNOWN_OPTION') {
-      error(err.message);
-      info(style.dim('Run `wondev --help` to see available options.'));
-    } else {
-      error((err as Error)?.stack ?? String(err));
-    }
-    process.exitCode = 1;
-  });
+/**
+ * Report a failure the way the CLI should, and return the exit code.
+ *
+ * Separate from the auto-run below so a test can assert on how each kind of error is
+ * presented: a WondevError shows its hint, an unknown option points at `--help`, and
+ * anything else shows a stack because it is a bug rather than a user mistake.
+ */
+export function reportFailure(err: unknown): number {
+  if (isWondevError(err)) {
+    error(err.message);
+    if (err.hint) info(style.dim(err.hint));
+  } else if (err instanceof Error && err.name === 'ERR_PARSE_ARGS_UNKNOWN_OPTION') {
+    error(err.message);
+    info(style.dim('Run `wondev --help` to see available options.'));
+  } else {
+    error((err as Error)?.stack ?? String(err));
+  }
+  return 1;
+}
+
+// Only when this file is what node was asked to run. Without the guard, importing the module
+// -- which is the only way to test any of the above -- would execute the CLI against the
+// test runner's own argv.
+const invokedDirectly =
+  process.argv[1] !== undefined &&
+  import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (invokedDirectly) {
+  main(process.argv.slice(2))
+    .then((code) => {
+      process.exitCode = code;
+    })
+    .catch((err: unknown) => {
+      process.exitCode = reportFailure(err);
+    });
+}

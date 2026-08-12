@@ -110,3 +110,33 @@ describe('wondev list', () => {
     expect(err.hint).toMatch(/wondev init/);
   });
 });
+
+describe('sections that are absent rather than empty', () => {
+  it('omits the always-loaded section when nothing is always-on', async () => {
+    await write(root, '.wondev/wondev.yaml', 'name: demo\ntargets:\n  - claude\nschema: 1\n');
+    await write(root, '.wondev/memory/glossary.md', '---\ntitle: Glossary\n---\n\nTerms.\n');
+
+    const out = await listOutput();
+    expect(out).not.toContain('always loaded');
+    expect(out).toContain('Memory — on demand');
+  });
+
+  it('omits the on-demand section when everything is always-on', async () => {
+    await write(root, '.wondev/wondev.yaml', 'name: demo\ntargets:\n  - claude\nschema: 1\n');
+    await write(root, '.wondev/memory/a.md', '---\ntitle: A\nalways: true\n---\n\nx\n');
+
+    const out = await listOutput();
+    expect(out).toContain('always loaded');
+    expect(out).not.toContain('on demand');
+  });
+
+  it('shows a memory document that carries no description', async () => {
+    await write(root, '.wondev/wondev.yaml', 'name: demo\ntargets:\n  - claude\nschema: 1\n');
+    await write(root, '.wondev/memory/bare.md', '---\ntitle: Bare\n---\n\nx\n');
+
+    const out = await listOutput();
+    expect(out).toContain('bare');
+    // No description means the note is just the freshness, with no dangling separator.
+    expect(out).not.toMatch(/unverified\s+·\s*$/m);
+  });
+});

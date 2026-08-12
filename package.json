@@ -49,7 +49,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "verify": "npm run typecheck && npm run build && npm run test",
+    "test:coverage": "vitest run --coverage",
+    "verify": "npm run typecheck && npm run build && npm run test:coverage",
     "prepublishOnly": "npm run verify"
   },
   "dependencies": {
