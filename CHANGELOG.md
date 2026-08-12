@@ -11,6 +11,47 @@ a patch, because it makes `wondev check` fail in every project that upgrades.
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-08-12
+
+Generated output is byte-identical to 1.0.0. Nothing needs rebuilding.
+
+### Changed
+
+- **`junie` is deprecated**, replaced by `agents`. Verified against JetBrains' documentation:
+  Junie now searches `.junie/AGENTS.md`, then `AGENTS.md`, then `.junie/guidelines.md`, which
+  it calls its "legacy format". Since `agents` is a default target, a project with both
+  enabled has an `AGENTS.md` that outranks the guidelines file — so wondev was writing a file
+  that would never be read. `build` now says so.
+
+- **`wondev doctor` names source problems instead of counting them.** It reported
+  "N source problem(s). Run `wondev check`", which spends a round trip to deliver one line.
+  It now prints the first three with their file and message, and points at `check` only when
+  there are more.
+
+- **`wondev list` shows freshness for on-demand memory too**, not only always-loaded. "Is
+  this still true?" is asked precisely when someone is about to rely on a document, which is
+  when an on-demand one gets read.
+
+### Added
+
+- **Every built-in target path is now verified** against its vendor's own documentation —
+  14 of 14, up from 12. `gemini` (`GEMINI.md`) and `junie` were the two that could not be
+  checked at 1.0.0.
+
+- **Test coverage measurement**, and the gaps it found closed. `list` shipped in 0.8.0 and
+  reached 1.0.0 with **no test at all** — the same gap that hid a runaway rebuild loop in
+  `watch` for two releases. Coverage is now 90%, with `list` at 100% and `doctor` raised from
+  68% to 78%.
+
+- **The migrate command's execution path is tested.** `MIGRATIONS` is empty, so the code that
+  applies a migration could not run until the day a real schema bump shipped. `runMigrate`
+  now takes an optional migration list — the same seam `pendingMigrations` already had — and
+  the full apply-and-stamp path is exercised.
+
+- A guard against a mistake that path exposed: a shipped migration advancing past
+  `SOURCE_SCHEMA_VERSION` means someone added the migration and forgot the constant, and
+  `migrate` would stamp the project into a schema its own build refuses to load.
+
 ## [1.0.0] - 2026-08-11
 
 The API and the source format are now stable. Breaking changes require a MAJOR release from

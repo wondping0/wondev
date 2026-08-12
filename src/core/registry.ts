@@ -110,6 +110,7 @@ export const BUILTIN_TARGETS: Record<string, RegistryEntry> = {
 
   gemini: {
     label: 'Gemini CLI',
+    pathVerified: '2026-08-12',
     addedIn: '0.1.0',
     readBy: ['Gemini CLI'],
     target: { engine: 'single-file', path: 'GEMINI.md', mode: 'region' },
@@ -125,9 +126,23 @@ export const BUILTIN_TARGETS: Record<string, RegistryEntry> = {
 
   junie: {
     label: 'JetBrains Junie',
+    pathVerified: '2026-08-12',
     addedIn: '0.1.0',
     readBy: ['JetBrains Junie'],
     target: { engine: 'single-file', path: '.junie/guidelines.md', mode: 'region' },
+    // Verified 2026-08-12: Junie now searches `.junie/AGENTS.md`, then `AGENTS.md`, then
+    // `.junie/guidelines.md`, which its own documentation calls "Junie's legacy format for
+    // guidelines (still supported)".
+    //
+    // The consequence is sharper than "legacy": `agents` is in DEFAULT_TARGETS, so a project
+    // with both enabled has an AGENTS.md that outranks this file, and the guidelines wondev
+    // writes here are never read. Working output that nothing consumes is worse than an
+    // error, because everything reports success.
+    deprecated: {
+      since: '1.0.1',
+      replacedBy: 'agents',
+      note: 'Junie prefers AGENTS.md; .junie/guidelines.md is its legacy format and is outranked whenever AGENTS.md exists.',
+    },
   },
 
   cursor: {

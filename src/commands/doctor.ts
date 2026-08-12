@@ -100,12 +100,24 @@ async function checkProject(root: string): Promise<Finding[]> {
   }
 
   const { issues } = await loadProject(root, config.name);
-  const sourceErrors = issues.filter((i) => i.level === 'error').length;
-  findings.push(
-    sourceErrors > 0
-      ? { level: 'error', message: `${sourceErrors} source problem(s). Run \`wondev check\`.` }
-      : { level: 'ok', message: 'sources parse cleanly' },
-  );
+  // Name the problems rather than only counting them. Someone runs `doctor` because
+  // something is already wrong; answering with a number and the name of a second command
+  // spends a round trip to deliver one line of text.
+  const sourceErrors = issues.filter((i) => i.level === 'error');
+  if (sourceErrors.length === 0) {
+    findings.push({ level: 'ok', message: 'sources parse cleanly' });
+  } else {
+    const NAMED = 3;
+    for (const issue of sourceErrors.slice(0, NAMED)) {
+      findings.push({ level: 'error', message: `${issue.file}: ${issue.message}` });
+    }
+    if (sourceErrors.length > NAMED) {
+      findings.push({
+        level: 'error',
+        message: `and ${sourceErrors.length - NAMED} more. Run \`wondev check\` for the full report.`,
+      });
+    }
+  }
 
   const manifest = await loadManifest(root);
   const tracked = Object.keys(manifest.files).length;

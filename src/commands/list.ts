@@ -33,7 +33,13 @@ export async function runList(root: string): Promise<void> {
     if (onDemand.length > 0) {
       info(style.bold('Memory — on demand'));
       for (const d of onDemand) {
-        line(d.slug, `≈${formatTokens(docTokens(d))}`, d.description ?? '');
+        // Freshness belongs here as much as above. "Is this still true?" is not a question
+        // only always-on documents raise -- an on-demand one is read precisely when someone
+        // is about to rely on it.
+        const note = [d.verified ? `✓ ${d.verified}` : 'unverified', d.description]
+          .filter(Boolean)
+          .join(' · ');
+        line(d.slug, `≈${formatTokens(docTokens(d))}`, note);
       }
       info('');
     }

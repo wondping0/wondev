@@ -1,11 +1,25 @@
 import { loadConfig, stampConfig } from '../core/config.js';
-import { MIGRATIONS, pendingMigrations, runMigrations } from '../core/migrate/index.js';
+import {
+  MIGRATIONS,
+  pendingMigrations,
+  runMigrations,
+  type Migration,
+} from '../core/migrate/index.js';
 import { SOURCE_SCHEMA_VERSION } from '../core/schema.js';
 import { info, step, style, success } from '../util/log.js';
 import { wondevVersion } from '../util/version.js';
 
 export interface MigrateOptions {
   dryRun?: boolean;
+  /**
+   * The migration list to use. Defaults to the shipped `MIGRATIONS`.
+   *
+   * A seam, for the same reason `pendingMigrations` already takes one: `MIGRATIONS` is empty
+   * because schema 1 is the only shape that has existed, so without this the code that
+   * actually applies a migration cannot be executed until the day it first matters. Tests
+   * supply their own list and run the real path.
+   */
+  migrations?: Migration[];
 }
 
 /**
@@ -16,7 +30,9 @@ export interface MigrateOptions {
  */
 export async function runMigrate(root: string, options: MigrateOptions = {}): Promise<void> {
   const config = await loadConfig(root);
-  const chain = pendingMigrations(config.schema, SOURCE_SCHEMA_VERSION, MIGRATIONS);
+  const available = options.migrations ?? MIGRATIONS;
+  const target = available.reduce((n, m) => Math.max(n, m.to), SOURCE_SCHEMA_VERSION);
+  const chain = pendingMigrations(config.schema, target, available);
   const running = wondevVersion();
 
   if (chain.length === 0) {
@@ -32,7 +48,7 @@ export async function runMigrate(root: string, options: MigrateOptions = {}): Pr
   }
 
   info(
-    `Migrating source schema ${style.bold(String(config.schema))} -> ${style.bold(String(SOURCE_SCHEMA_VERSION))}`,
+    `Migrating source schema ${style.bold(String(config.schema))} -> ${style.bold(String(target))}`,
   );
   for (const migration of chain) {
     step(`${migration.from} -> ${migration.to}: ${migration.describe}`);
@@ -47,9 +63,9 @@ export async function runMigrate(root: string, options: MigrateOptions = {}): Pr
   const { applied, changed } = await runMigrations(root, chain);
   for (const path of changed) step(`${style.dim('changed')}  ${path}`);
 
-  await stampConfig(root, SOURCE_SCHEMA_VERSION, running);
+  await stampConfig(root, target, running);
   success(
-    `applied ${applied.length} migration(s), ${changed.length} file(s) changed — now at schema ${SOURCE_SCHEMA_VERSION}`,
+    `applied ${applied.length} migration(s), ${changed.length} file(s) changed — now at schema ${target}`,
   );
   info(style.dim('Run `wondev build` to regenerate output from the migrated source.'));
 }

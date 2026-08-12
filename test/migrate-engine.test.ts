@@ -7,9 +7,10 @@ import {
   runMigrations,
   type Migration,
 } from '../src/core/migrate/index.js';
-import { assertSchemaCurrent } from '../src/core/schema.js';
+import { assertSchemaCurrent, SOURCE_SCHEMA_VERSION } from '../src/core/schema.js';
 import { loadConfig, stampConfig } from '../src/core/config.js';
-import { catchWondevError, cleanup, read, seedProject, tmpRoot, write } from './helpers.js';
+import { runMigrate } from '../src/commands/migrate.js';
+import { catchWondevError, cleanup, read, seedProject, silence, tmpRoot, write } from './helpers.js';
 
 /**
  * The migration engine, exercised end to end against synthetic schema versions.
@@ -63,6 +64,14 @@ describe('the shipped migration list', () => {
       expect(seen.has(m.from), `two migrations start at schema ${m.from}`).toBe(false);
       seen.add(m.from);
       expect(m.describe.trim().length).toBeGreaterThan(0);
+      // A migration that advances past SOURCE_SCHEMA_VERSION means someone added the
+      // migration and forgot to bump the constant. `wondev migrate` would then stamp the
+      // project to a schema this very build refuses to load -- migrating it into a state
+      // only a future release can read.
+      expect(
+        m.to,
+        `migration to schema ${m.to} exceeds SOURCE_SCHEMA_VERSION ${SOURCE_SCHEMA_VERSION}; bump the constant`,
+      ).toBeLessThanOrEqual(SOURCE_SCHEMA_VERSION);
     }
   });
 });
@@ -160,5 +169,63 @@ describe('stampConfig', () => {
     const config = await loadConfig(root);
     expect(config.schema).toBe(1);
     expect(config.wondevVersion).toBe('9.9.9');
+  });
+});
+
+describe('the migrate command', () => {
+  /** A migration that renames one frontmatter key, wrapped for the command tests. */
+  const bump = (from: number, to: number): Migration => renameKey(from, to, 'checked', 'verified');
+
+  it('says nothing to do, and stamps the version that last touched the project', async () => {
+    await seedProject(root, ['claude']);
+    await write(root, '.wondev/wondev.yaml', 'name: demo\ntargets:\n  - claude\nschema: 1\n');
+
+    await silence(() => runMigrate(root));
+
+    const config = await loadConfig(root);
+    expect(config.schema).toBe(1);
+    // The stamp is the point: without it the next upgrade cannot tell what wrote this.
+    expect(config.wondevVersion).toBeDefined();
+  });
+
+  it('changes nothing on a dry run', async () => {
+    await seedProject(root, ['claude']);
+    await write(root, '.wondev/memory/a.md', '---\nchecked: 2026-08-10\n---\n\nx\n');
+
+    await silence(() => runMigrate(root, { dryRun: true, migrations: [bump(1, 2)] }));
+
+    expect(await read(root, '.wondev/memory/a.md')).toContain('checked:');
+    expect((await loadConfig(root)).schema).toBe(1);
+  });
+
+  it('applies the chain and stamps the schema it reached', async () => {
+    // This is the path that has never run in production, because MIGRATIONS is empty. It
+    // would otherwise first execute on the day a real schema bump ships.
+    await seedProject(root, ['claude']);
+    await write(root, '.wondev/wondev.yaml', 'name: demo\ntargets:\n  - claude\nschema: 1\n');
+    await write(root, '.wondev/memory/a.md', '---\nchecked: 2026-08-10\n---\n\nx\n');
+
+    await silence(() => runMigrate(root, { migrations: [bump(1, 2), renameKey(2, 3, 'owner', 'maintainer')] }));
+
+    const after = await read(root, '.wondev/memory/a.md');
+    expect(after).toContain('verified: 2026-08-10');
+
+    // Read the raw file: the injected chain simulates a future build's migrations, so the
+    // stamped schema is deliberately beyond what this build will load.
+    const raw = await read(root, '.wondev/wondev.yaml');
+    expect(raw).toContain('schema: 3');
+    expect(raw).toMatch(/wondevVersion:/);
+  });
+
+  it('refuses a chain with a gap instead of skipping it', async () => {
+    await seedProject(root, ['claude']);
+    await write(root, '.wondev/wondev.yaml', 'name: demo\ntargets:\n  - claude\nschema: 1\n');
+
+    const err = await catchWondevError(() =>
+      silence(() => runMigrate(root, { migrations: [bump(1, 2), renameKey(3, 4, 'a', 'b')] })),
+    );
+    expect(err.message).toMatch(/No migration path/);
+    // Nothing was stamped, so the project is still honestly at schema 1.
+    expect((await loadConfig(root)).schema).toBe(1);
   });
 });
