@@ -41,7 +41,7 @@ export function isAtomicWriteTemp(name: string): boolean {
   return /\.wondev-\d+-[0-9a-f]+\.tmp$/.test(name);
 }
 
-export async function writeFileAtomic(target: string, content: string): Promise<void> {
+export async function writeFileAtomic(target: string, content: string | Uint8Array): Promise<void> {
   await ensureDir(path.dirname(target));
   const tmp = `${target}.wondev-${process.pid}-${crypto.randomBytes(4).toString('hex')}.tmp`;
   try {
@@ -97,8 +97,8 @@ export async function listFilesRecursive(dir: string): Promise<string[]> {
   return out.sort();
 }
 
-export function sha256(content: string): string {
-  return crypto.createHash('sha256').update(content, 'utf8').digest('hex');
+export function sha256(content: string | Uint8Array): string {
+  return crypto.createHash('sha256').update(content).digest('hex');
 }
 
 /**

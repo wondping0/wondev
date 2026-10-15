@@ -27,7 +27,7 @@ export function docTokens(doc: MemoryDoc): number {
 
 /** What every target pays on every turn, regardless of what the task is. */
 export function alwaysOnTokens(project: Project): number {
-  return project.memory.filter((d) => d.always).reduce((sum, d) => sum + docTokens(d), 0);
+  return project.memory.filter((d) => d.always && (!d.status || d.status === 'active')).reduce((sum, d) => sum + docTokens(d), 0);
 }
 
 function table(docs: MemoryDoc[], showChecked: boolean, columns: IndexColumn[]): string {
@@ -39,11 +39,11 @@ function table(docs: MemoryDoc[], showChecked: boolean, columns: IndexColumn[]):
     ...columns.map((c) => c.label),
   ];
   const rows = docs.map((doc) => [
-    `[[${doc.slug}]]`,
+    `[[${doc.vaultPath ?? doc.slug}]]`,
     formatTokens(docTokens(doc)),
     ...(showChecked ? [doc.verified ? `✓ ${doc.verified}` : ''] : []),
     cell(doc.description),
-    ...columns.map((c) => cell(doc.extra[c.key])),
+    ...columns.map((c) => cell(doc.extra[c.key] ?? (doc as unknown as Record<string, unknown>)[c.key])),
   ]);
   return [
     `| ${head.join(' | ')} |`,
@@ -58,12 +58,14 @@ export function renderIndex(project: Project, config: IndexConfig): RenderedFile
   // stays deterministic and golden-testable.
   const showChecked = project.memory.some((d) => d.verified !== undefined);
 
-  const always = project.memory.filter((d) => d.always);
-  const onDemand = project.memory.filter((d) => !d.always);
+  const active = project.memory.filter((d) => !d.status || d.status === 'active');
+  const inactive = project.memory.filter((d) => d.status === 'draft' || d.status === 'archived');
+  const always = active.filter((d) => d.always);
+  const onDemand = active.filter((d) => !d.always);
 
   const out: string[] = ['# Memory index'];
 
-  if (always.length === 0 && onDemand.length === 0) {
+  if (project.memory.length === 0) {
     out.push('No memory documents yet.');
   }
 
@@ -83,6 +85,12 @@ export function renderIndex(project: Project, config: IndexConfig): RenderedFile
     out.push('## On demand');
     out.push('Costs nothing until something loads it. Read the trigger before deciding to.');
     out.push(table(onDemand, showChecked, config.columns));
+  }
+
+  if (inactive.length > 0) {
+    out.push('## Draft and archived');
+    out.push('Available for review; excluded from agent context and task selection.');
+    out.push(table(inactive, showChecked, config.columns.some((c) => c.key === 'status') ? config.columns : [...config.columns, { key: 'status', label: 'Status' }]));
   }
 
   return { path: config.file, content: `${out.join('\n\n').trim()}\n`, mode: 'region' };

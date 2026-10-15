@@ -1,0 +1,346 @@
+# Active vaults, task context, and shared skills
+
+wondev keeps project knowledge in ordinary files and compiles it for each agent. Obsidian
+is an optional editor for those same sources. No Obsidian server, plugin, subscription,
+embedding service, or model API is required. Builds and context queries work offline.
+
+## Start with a vault
+
+```bash
+npx wondev init --vault knowledge --targets claude,agents
+```
+
+For an already initialized project:
+
+```bash
+wondev vault knowledge --dry-run
+wondev vault knowledge
+wondev build
+```
+
+The conversion moves the existing memory, skills, commands, agents, and sessions into the
+new vault. It refuses an existing destination and checks all paths before moving sources.
+`.wondev/` continues to contain configuration, provenance, locks, and verification records.
+Open `knowledge/` as a folder vault in Obsidian.
+Enable the core Templates plugin to insert the provided templates; its folder is preconfigured.
+
+```text
+.wondev/
+  wondev.yaml
+  .manifest.json
+  .templates.json
+  .memory.json
+  skills.lock.json
+knowledge/
+  index.md                    managed memory index plus your own introduction
+  review.md                   evidence status from the last build
+  memory/                     durable project knowledge
+  skills/                     reusable procedures and their resources
+  commands/
+  agents/
+  sessions/                   work summaries and proposed memory changes
+  templates/                  module, flow, decision, and runbook templates
+  dashboards/project.base     Obsidian Bases views
+```
+
+For an existing vault, configure the sources directly instead of converting directories:
+
+```yaml
+vault: knowledge
+sources:
+  memory: knowledge/memory
+  skills: knowledge/skills
+  commands: knowledge/commands
+  agents: knowledge/agents
+  sessions: knowledge/sessions
+index:
+  file: knowledge/index.md
+  columns:
+    - { key: kind, label: Kind }
+    - { key: status, label: Status }
+    - { key: owner, label: Owner }
+```
+
+Every source is optional; omitted entries retain their `.wondev/<kind>` default. Source
+directories must be distinct, non-overlapping directories inside the application repository.
+Generated output cannot be placed inside a source directory. `add`, `remove`, `upgrade`,
+and `watch` use these configured paths. Template provenance continues to use logical keys
+such as `memory/architecture.md`, even after moving to a vault.
+
+`adopt --vault <dir>` remains a one-time import. It now preserves normalized folder paths
+and rewrites note links, including relative Markdown links. Import does not establish a
+live connection to the original folder. Ambiguous links require an explicit folder path.
+
+## Model the application
+
+Keep one coherent subject per note: a module, cross-module flow, decision, or runbook.
+Record entry points, responsibilities, contracts, invariants, rejected approaches, and the
+checks that demonstrate the note is still accurate.
+
+```markdown
+---
+id: module-auth
+title: Authentication
+kind: module
+status: active
+description: Read when changing login, sessions, or authorization.
+globs: ["src/auth/**"]
+evidence: ["src/auth/**", "test/auth/**"]
+related:
+  - "[[memory/flows/login]]"
+  - "[[memory/decisions/session-storage]]"
+aliases: [Authentication module]
+owner: platform
+---
+
+# Authentication
+
+## Responsibility
+
+Validate credentials and issue sessions.
+
+## Invariants
+
+Every session is checked before a protected operation.
+
+## Decisions and rejected alternatives
+
+Explain the reasoning that cannot be recovered from the code alone.
+
+## Verification
+
+Describe the relevant tests and deployment checks.
+```
+
+Assign a unique `id` that survives file and title changes. Without one, the path-like slug
+is the identity. `status` is `draft`, `active`, or `archived`; an absent status means active
+for existing projects. Draft and archived notes remain available to humans but are not
+compiled into agent context or selected for tasks. New Obsidian templates begin as drafts.
+
+Links support vault paths, unique basenames, aliases, `[[note#Heading|label]]`,
+`[[note#^block]]`, local headings, note embeds, and relative Markdown links. Code examples
+and comments do not become graph edges. Missing or ambiguous note links fail validation.
+Non-note resource links are not interpreted as memory. Links in `related` also become
+graph edges and may use stable IDs.
+
+Bases reads the Markdown properties directly. Its provided views cover all memory,
+modules, decisions, and notes with no verification date. `review.md` separately reports
+fingerprint changes; run `wondev memory stale` for live results between builds.
+
+## Select context for a task
+
+```bash
+wondev context --task "fix refresh token handling" --files src/auth/session.ts --budget 4000 --explain
+wondev context --task "review session storage" --json --budget 8000
+```
+
+Selection uses task terms, word prefixes, paths matching `globs` (or `evidence` when no
+globs are supplied), and a bounded graph traversal. Metadata matches rank above body
+matches; matching paths receive the strongest boost. One hop and at most eight additional
+graph notes are the defaults. Related notes and backlinks both participate. The public
+`selectContext` API accepts `depth` (0–3) and `graphLimit` (0–100).
+
+Always-on memory and inline skills are required. If these and the packet overhead exceed
+the budget, the command fails with an actionable message. Other whole documents are added
+in deterministic relevance order when they fit. The output includes source paths, evidence
+status, and the number of omitted relevant items. `--explain` adds selection reasons.
+
+The ceiling applies to the **complete emitted Markdown or JSON**, including wrappers and
+metadata. Counts remain estimates at four characters per token, not model tokenizer
+counts. A small budget can omit relevant material; inspect the omissions and raise it when
+needed. Stale or unverified notes are labeled and may still be useful as leads.
+
+Active vault projects receive generated startup instructions explaining this command.
+Use `npx --no-install wondev ...` when the executable is installed locally. The public API
+supports the same workflow without launching a subprocess:
+
+```ts
+import { loadProjectContext, inspectFreshness, selectContext } from 'wondev';
+
+const { project } = await loadProjectContext(root); // honors the configured skill profile
+const freshness = await inspectFreshness(root, project.memory);
+const packet = selectContext(project, { task: 'fix refresh tokens', budget: 4000 }, freshness);
+```
+
+The existing `index.budget` remains a separate limit on always-on memory bodies. It is not
+a measure of a particular host's entire runtime context. Host-specific skill activation,
+cached context, and tool output are outside the compiler's control.
+
+## Verify memory against evidence
+
+After actually reviewing the relevant code and checks:
+
+```bash
+wondev memory verify module-auth --against "Reviewed session.ts and ran authentication tests"
+wondev memory stale
+wondev memory stale --json
+wondev build
+```
+
+Verification records the note's claims, the matching evidence files and their checksums,
+the date, and your description of the check. Changes to a note's claims or metadata,
+modified evidence, additions, and deletions mark it stale. Moving a note with a stable ID
+does not by itself invalidate the record. A historical `verified` date without a fingerprint
+record is reported as unverified.
+
+Evidence patterns are repository-relative and support `*`, `**`, `?`, `{a,b}`, and `!`
+exclusions. Character classes and platform-specific separators are not supported. Each
+positive evidence pattern must match at least one file when recording verification.
+Dependency, Git, Obsidian settings, and wondev state directories are excluded from scans;
+symlinks are not followed. A note cannot count itself as evidence. Prefer precise code and
+test paths over `**`.
+
+This is evidence-change detection and an explicit verification record. The CLI does not
+run the described tests or infer whether a claim is true. A changed file means review is
+needed; it does not establish that the note is wrong.
+
+## Manage portable skills
+
+Skills can include Markdown references, executable scripts, binary assets, and templates:
+
+```text
+skills/review-auth/
+  SKILL.md
+  references/contracts.md
+  scripts/check.mjs
+  assets/schema.json
+```
+
+Native skill output preserves `license`, `compatibility`, `metadata`, and `allowed-tools`.
+Resources are copied byte-for-byte without generated Markdown headers. Hidden bookkeeping
+files and pending `.new` files are excluded. wondev never executes these scripts during a
+build. Other target engines expose source references or rule files according to their
+capabilities; `wondev targets --verbose` describes the actual compiler behavior.
+
+```bash
+wondev skills validate
+wondev skills eval trigger-cases.json
+```
+
+```json
+[
+  { "task": "investigate a failing login test", "expected": ["debugging"] },
+  { "task": "write a release announcement", "expected": [], "forbidden": ["review-auth"] }
+]
+```
+
+Cases may include `files`. Evaluation tests wondev's deterministic selector and exits
+nonzero for missing expected or selected forbidden skills. Native host models can choose
+skills differently. Validation checks portable naming, directory identity, description,
+and standard metadata requirements; it does not execute skill procedures.
+
+Profiles select which skills are available:
+
+```yaml
+profile: backend
+profiles:
+  backend:
+    skills: [debugging, writing-tests, "api-*", "!api-legacy"]
+  review:
+    skills: [code-review, verify-before-done]
+```
+
+Use `--profile review` on build, check, context, list, or skill validation/evaluation to
+override the configured profile. A build updates the usual output paths and retires skills
+excluded by that profile. Check with the same profile. Profiles do not change host tool
+permissions or model configuration.
+
+## Install and update skill packs
+
+A local or npm pack is an ordinary package with skills included in its published files:
+
+```json
+{
+  "name": "@your-team/backend-skills",
+  "version": "1.0.0",
+  "files": ["skills"],
+  "wondev": { "skills": "skills" }
+}
+```
+
+```bash
+wondev skills install local:packs/backend --dry-run
+wondev skills install local:packs/backend
+wondev skills install npm:@your-team/backend-skills@1.0.0
+
+wondev skills update @your-team/backend-skills --source npm:@your-team/backend-skills@1.1.0 --dry-run
+wondev skills update @your-team/backend-skills --source npm:@your-team/backend-skills@1.1.0
+wondev skills sync
+```
+
+`skills.lock.json` records exact resolved versions, package content checksums, and per-file
+installation baselines. Updates use the declared source; specify `--source` to change a
+pinned version. Sync fetches the exact locked npm version and rejects checksum differences
+or local modifications. It can restore missing locked files. Local packs must still match
+their locked content to sync.
+
+Untouched files update automatically. Edited or intentionally deleted files are preserved;
+incoming versions are offered under `.wondev/skill-updates/`, outside active skill sources.
+Dry runs show changed paths, hashes, and before/after text for reasonably sized text files.
+Unchanged obsolete resources are removed. Skill name collisions across packs or existing
+unmanaged skills are refused. Commit your chosen local customizations along with the lock.
+
+npm downloads run in a temporary directory with lifecycle scripts disabled, no binary
+links, and no audit/funding requests. A project's package.json is not changed. Only explicit
+install, update, or sync operations access npm; builds never download anything. Private
+registries use the npm environment already configured on the machine. The core has no new
+runtime dependencies. `WONDEV_NPM_CLI` can identify `npm-cli.js` on unusual installations.
+
+## Capture results from several agents
+
+Create a short JSON summary instead of storing a complete conversation:
+
+```json
+{
+  "agent": "claude",
+  "task": "Investigate session expiry",
+  "outcome": "Found an inconsistent expiry check.",
+  "decisions": ["Keep expiry validation in the session service."],
+  "evidence": ["src/auth/session.ts", "npm test -- auth"],
+  "failedAttempts": ["Changing only the UI timeout did not resolve expired sessions."],
+  "next": ["Add coverage for refresh near expiry."]
+}
+```
+
+```bash
+wondev session record --input summary.json
+wondev session propose <session-id> module-auth --input updated-auth.md
+wondev session review <proposal-id>
+wondev session apply <proposal-id> --review-hash <hash-from-review>
+# Or:
+wondev session reject <proposal-id>
+```
+
+Session records have unique IDs. A proposal contains the original note, the proposed note,
+the expected source hash, and a review hash. JSON is its canonical record; its Markdown
+companion is a review view usable in Obsidian. Editing a Markdown companion does not change
+the proposal. Changing the canonical proposal changes its review hash.
+
+Apply requires the reviewed hash and refuses if another writer changed the note after the
+proposal was created. Applying the same unchanged proposal again is safe. An interrupted
+application can resume when the note already equals the proposed version. Applying updates
+regenerates outputs unless `--no-build` is supplied. The changed memory must still be checked
+against evidence before recording a fresh verification.
+
+Cooperating wondev writers serialize changes with `.wondev/.lock`. A competing operation
+waits briefly, then reports contention. Locks are never removed merely because they are old.
+After a crash, verify the writer has stopped before removing a leftover lock. External
+editors do not participate in this lock; expected-hash checks catch edits observed before
+application. Avoid simultaneous manual editing of the note being applied.
+
+## Compatibility and checks
+
+Existing projects keep source schema 1 and their default paths. All features are additive;
+moving to a vault is explicit. Resource headers change for skill attachments, so this is a
+minor release under wondev's output-version contract. Rebuild and commit generated changes
+when upgrading. No automatic semantic merge, embeddings, background model calls, host
+settings ownership, or MCP configuration is introduced.
+
+Commit sources, configuration, verification records, pack locks, template provenance, and
+the usual generated-file manifest. Commit session records according to your project's
+retention policy. Exclude transient `.lock` and review-offer scratch files as appropriate.
+Do not commit private credentials in memory or skill resources.
+
+The formats follow [Obsidian internal links](https://obsidian.md/help/links),
+[Bases syntax](https://obsidian.md/help/bases/syntax), and the
+[Agent Skills specification](https://agentskills.io/specification).

@@ -43,6 +43,9 @@ describe('provenance', () => {
     expect(manifest).not.toBeNull();
     expect(Object.keys(manifest!.files)).toContain('skills/debugging/SKILL.md');
     expect(Object.keys(manifest!.files)).toContain('memory/architecture.md');
+    expect(Object.keys(manifest!.files)).toContain('.gitignore');
+    expect(await read(root, '.wondev/.gitignore')).toContain('skill-updates/');
+    expect(await exists(root, '.wondev/gitignore')).toBe(false);
   });
 
   it('refuses to upgrade a project with no provenance', async () => {

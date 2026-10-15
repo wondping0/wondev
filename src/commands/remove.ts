@@ -1,11 +1,13 @@
 import path from 'node:path';
 import fs from 'node:fs/promises';
-import { wondevDir } from '../core/config.js';
+import { loadConfig, sourceDirectory, sourceFile, wondevDir, type SourceConfig } from '../core/config.js';
+import { createRootGuard } from '../util/paths.js';
 import { WondevError } from '../util/errors.js';
 import { pathExists } from '../util/fs.js';
 import { info, step, style, success } from '../util/log.js';
 import { parseKind, type ArtifactKind } from './add.js';
 import { runBuild } from './build.js';
+import { withProjectLock } from '../util/lock.js';
 
 /**
  * Delete an artifact and the output it produced.
@@ -57,16 +59,17 @@ function assertResolvedInside(dir: string, target: string): void {
 }
 
 /** Where each kind lives, and whether it owns a directory. */
-function locate(base: string, kind: ArtifactKind, name: string): { file: string; dir?: string } {
+function locate(root: string, sources: SourceConfig | undefined, kind: ArtifactKind, name: string): { file: string; dir?: string } {
+  const resolve = (rel: string): string => path.join(root, sourceFile(rel, sources));
   switch (kind) {
     case 'skill':
-      return { file: path.join(base, 'skills', name, 'SKILL.md'), dir: path.join(base, 'skills', name) };
+      return { file: resolve(`skills/${name}/SKILL.md`), dir: path.dirname(resolve(`skills/${name}/SKILL.md`)) };
     case 'memory':
-      return { file: path.join(base, 'memory', `${name}.md`) };
+      return { file: resolve(`memory/${name}.md`) };
     case 'command':
-      return { file: path.join(base, 'commands', `${name}.md`) };
+      return { file: resolve(`commands/${name}.md`) };
     case 'agent':
-      return { file: path.join(base, 'agents', `${name}.md`) };
+      return { file: resolve(`agents/${name}.md`) };
   }
 }
 
@@ -76,6 +79,12 @@ export async function runRemove(
   name: string,
   options: RemoveOptions = {},
 ): Promise<void> {
+  if (options.dryRun || !(await pathExists(wondevDir(root)))) return removeLocked(root, rawKind, name, options);
+  await withProjectLock(root, () => removeLocked(root, rawKind, name, options));
+  if (!options.noBuild) await runBuild(root, {});
+}
+
+async function removeLocked(root: string, rawKind: string, name: string, options: RemoveOptions): Promise<void> {
   const kind = parseKind(rawKind);
   const base = wondevDir(root);
   if (!(await pathExists(base))) {
@@ -85,10 +94,13 @@ export async function runRemove(
   // Before anything is resolved, let alone deleted.
   assertInside(base, name, kind);
 
-  const { file, dir } = locate(base, kind, name);
+  const config = await loadConfig(root);
+  const { file, dir } = locate(root, config.sources, kind, name);
+  const guard = createRootGuard(root);
+  await guard(path.relative(root, file));
 
   // A skill may also exist in the flat `skills/<name>.md` form.
-  const flat = kind === 'skill' ? path.join(base, 'skills', `${name}.md`) : null;
+  const flat = kind === 'skill' ? path.join(root, sourceFile(`skills/${name}.md`, config.sources)) : null;
   const target = (await pathExists(file))
     ? file
     : flat && (await pathExists(flat))
@@ -114,10 +126,10 @@ export async function runRemove(
   // Defence in depth, mirroring removeOwned in writer.ts: this is the only other place in
   // wondev that deletes, so it re-checks regardless of what the caller already validated.
   if (removeDir) {
-    assertResolvedInside(path.join(base, 'skills'), dir);
+    assertResolvedInside(path.join(root, sourceDirectory('skills', config.sources)), dir);
     await fs.rm(dir, { recursive: true, force: true });
   } else {
-    assertResolvedInside(base, target);
+    assertResolvedInside(root, target);
     await fs.rm(target, { force: true });
   }
   success(`removed ${style.cyan(rel)}`);
@@ -128,5 +140,4 @@ export async function runRemove(
   }
 
   info('');
-  await runBuild(root, {});
 }

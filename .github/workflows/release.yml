@@ -46,7 +46,7 @@ jobs:
           npmrc="${NPM_CONFIG_USERCONFIG:-$HOME/.npmrc}"
           if [ -f "$npmrc" ]; then
             sed -i '/_authToken/d' "$npmrc"
-            echo "npmrc after cleanup:"; cat "$npmrc"
+            echo "Removed placeholder token configuration."
           else
             echo "no .npmrc at $npmrc"
           fi
@@ -57,6 +57,12 @@ jobs:
       # typecheck, build, and pass its tests.
       - name: Verify
         run: npm run verify
+
+      - name: Verify the installed package
+        run: npm run test:package
+
+      - name: Verify upgrade from 1.1.1
+        run: npm run test:upgrade
 
       - name: Confirm the tag matches package.json
         run: |
@@ -80,7 +86,8 @@ jobs:
         run: |
           if [ -n "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ]; then oidc=available; else oidc=MISSING; fi
           npmrc="${NPM_CONFIG_USERCONFIG:-$HOME/.npmrc}"
-          echo "::warning::node=$(node -v) npm=$(npm -v) oidc=$oidc registry=$(npm config get registry) npmrc=[$(tr '\n' ';' < "$npmrc" 2>/dev/null)]"
+          if [ -f "$npmrc" ] && grep -q '_authToken' "$npmrc"; then auth_line=present; else auth_line=absent; fi
+          echo "::notice::node=$(node -v) npm=$(npm -v) oidc=$oidc registry=$(npm config get registry) auth_token_line=$auth_line"
 
       # Deliberately no NODE_AUTH_TOKEN and no --provenance.
       #

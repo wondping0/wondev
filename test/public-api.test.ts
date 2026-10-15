@@ -27,6 +27,15 @@ describe('public API', () => {
       'BUILTIN_TARGETS',
       'WondevError',
       'SOURCE_SCHEMA_VERSION',
+      'loadProjectContext',
+      'selectContext',
+      'inspectFreshness',
+      'installPack',
+      'updatePack',
+      'syncPacks',
+      'recordSession',
+      'proposeMemory',
+      'applyMemoryProposal',
     ]) {
       expect(api, `missing export: ${name}`).toHaveProperty(name);
     }

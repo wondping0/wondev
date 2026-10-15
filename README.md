@@ -87,6 +87,23 @@ Edit them; they are yours.
 Already have `CLAUDE.md` or `.claude/`? Use [`wondev adopt`](#already-have-agent-config)
 instead — it reads what you have rather than writing over it.
 
+### Active Obsidian vaults and task memory
+
+```bash
+npx wondev init --vault knowledge --targets claude,agents
+npx wondev context --task "fix login" --files src/auth/session.ts --budget 4000 --explain
+npx wondev memory stale
+```
+
+Open `knowledge/` in Obsidian to edit the same sources agents use. wondev provides module,
+flow, decision, and runbook templates, Bases dashboards, evidence fingerprints, and bounded
+task context. Skills can carry scripts and binary assets, be installed as versioned local
+or npm packs, and be selected through profiles. Session records and reviewed proposals
+let several agents contribute memory without overwriting a newer version.
+
+See the [complete knowledge and skill workflow](docs/knowledge.md) for setup, commands,
+configuration, compatibility, and the limits of automated freshness checks.
+
 ## Commands
 
 | Command | What it does |
@@ -94,7 +111,7 @@ instead — it reads what you have rather than writing over it.
 | `wondev init` | Scaffold `.wondev/` with the starter pack, then build |
 | `wondev adopt` | Read existing agent config back into `.wondev/` |
 | `wondev build` | Compile to every enabled target |
-| `wondev watch` | Rebuild whenever `.wondev/` changes |
+| `wondev watch` | Rebuild when configured sources or `.wondev/wondev.yaml` change |
 | `wondev add <skill\|memory\|command\|agent> <name>` | Scaffold one new artifact |
 | `wondev remove <type> <name>` | Delete one, and sweep the output it produced |
 | `wondev list` | Show what this project defines, and what each piece costs |
@@ -104,6 +121,12 @@ instead — it reads what you have rather than writing over it.
 | `wondev upgrade` | Update starter-pack files, never touching ones you edited |
 | `wondev doctor` | Diagnose the project and report problems |
 | `wondev targets` | List known targets and what reads them (`--new` for recent additions) |
+| `wondev vault [dir]` | Move existing sources into an active Obsidian vault |
+| `wondev context` | Select task-relevant memory and skills within an estimated token budget |
+| `wondev memory verify <note>` / `memory stale` | Record evidence checks and detect changed evidence |
+| `wondev skills install` / `update` / `sync` | Manage local/npm skill packs with locked versions and checksums |
+| `wondev skills validate` / `eval` | Check portable metadata and positive/negative trigger cases |
+| `wondev session record` / `propose` / `review` / `apply` / `reject` | Capture work and reconcile reviewed memory updates |
 
 Useful flags: `--targets a,b,c` and `--all` on `init`; `--dry-run`, `--force`, and
 `--target <name>` on `build`; `--cwd <dir>` and `--no-color` everywhere.
@@ -192,7 +215,7 @@ cannot act on the body anyway.
 
 ### Reference material a skill does not carry
 
-Any `.md` file beside `SKILL.md` becomes an attachment:
+Resource files beside `SKILL.md` become attachments:
 
 ```
 .wondev/skills/graphify/
@@ -203,13 +226,15 @@ Any `.md` file beside `SKILL.md` becomes an attachment:
 ```
 
 Claude Code gets the files copied across, where it loads them only when the skill points at
-them. Flat targets like `AGENTS.md` get the *paths* instead — never the contents. That is
-the point of keeping them separate: `AGENTS.md` already carries every skill body, and it is
-read on every single turn, so material that is needed occasionally must not be paid for
-constantly. The paths are real, so an agent that wants a reference can open it.
+them. Flat targets like `AGENTS.md` get the *paths* instead — never the contents. Inline
+skills include their bodies in the entry file; on-demand skills expose a reference for
+the agent to open when relevant. Resource paths point to real files in the configured
+sources, so the agent can load additional material when it needs it.
 
-Attachments must be markdown. Anything else warns and is skipped, because every generated
-file gets an HTML comment header that would corrupt other formats.
+Attachments can include `references/`, `scripts/`, `assets/`, and other resource files.
+Native skill output copies them byte-for-byte without Markdown headers; wondev does not
+execute scripts during a build. Hidden bookkeeping and pending `.new` files are skipped.
+Portable skill metadata is preserved. See [skill packs and profiles](docs/knowledge.md#manage-portable-skills).
 
 ## The memory index
 
@@ -449,11 +474,12 @@ Formats from a newer wondev are refused with a clear message rather than misread
 ## Security
 
 wondev writes across your repository and deletes files it previously wrote, and it is
-routinely run on freshly cloned repositories. So **everything under `.wondev/` is treated as
-untrusted input** — including the manifest wondev wrote itself.
+routinely run on freshly cloned repositories. So **configured sources and `.wondev/` are
+treated as untrusted input** — including the manifest wondev wrote itself.
 
-- No process execution, no `eval`, no postinstall script, no telemetry. The only network
-  request is `wondev doctor --online`, and only with that flag.
+- Builds do not execute source code or access the network. Explicit npm skill-pack
+  operations invoke npm with lifecycle scripts disabled; `doctor --online` also accesses
+  the registry. No `eval`, postinstall script, or telemetry is introduced.
 - Output paths are checked twice: lexically, and again after resolving symlinks. A
   repository shipping `.claude -> ~/.ssh` passes a lexical check while every write lands
   outside the project; the second check stops that.

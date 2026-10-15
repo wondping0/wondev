@@ -16,6 +16,7 @@ export interface InitOptions {
   all?: boolean;
   force?: boolean;
   skipBuild?: boolean;
+  vault?: string | undefined;
 }
 
 export async function runInit(root: string, options: InitOptions = {}): Promise<void> {
@@ -37,6 +38,7 @@ export async function runInit(root: string, options: InitOptions = {}): Promise<
   }
 
   await copyDir(templates, base);
+  await fs.rename(path.join(base, 'gitignore'), path.join(base, '.gitignore'));
   await writeFileAtomic(path.join(base, CONFIG_FILE), renderConfig(path.basename(root), targets));
 
   // Record what was shipped, so `wondev upgrade` can later tell an edited starter file from
@@ -55,13 +57,18 @@ export async function runInit(root: string, options: InitOptions = {}): Promise<
   info(style.dim(`  ${summary.join(', ')}`));
   info(style.dim(`  targets: ${targets.join(', ')}`));
 
+  if (options.vault) {
+    const { runVault } = await import('./vault.js');
+    await runVault(root, options.vault);
+  }
+
   if (!options.skipBuild) {
     info('');
     await runBuild(root, {});
   }
 
   info('');
-  info(`Next: edit ${style.cyan(`${WONDEV_DIR}/memory/architecture.md`)}, then run ${style.cyan('wondev build')}.`);
+  info(`Next: edit ${style.cyan(`${options.vault ?? WONDEV_DIR}/memory/architecture.md`)}, then run ${style.cyan('wondev build')}.`);
 }
 
 /** The files and directories `adopt` knows how to read back into `.wondev/`. */

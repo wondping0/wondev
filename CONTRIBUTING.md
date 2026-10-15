@@ -4,10 +4,28 @@
 
 ```bash
 npm ci
-npm run verify   # typecheck, build, then 191 tests
+npm run verify   # typecheck, build, then behavior tests with coverage gates
+npm run test:package   # pack, install into a temporary app, and exercise the shipped CLI
+npm run test:upgrade   # install published 1.1.1, customize it, then upgrade to this build
 ```
 
-`npm run verify` is the same pipeline CI runs. If it passes locally it will pass there.
+CI runs the same typecheck, build, and coverage gates on Windows, macOS, and Linux with
+Node 20 and 22. Package and upgrade smoke checks run on all three platforms with Node 22.
+
+The package smoke check additionally installs the built tarball and checks the executable,
+packaged guide, vault, context, fingerprints, skills, sessions, and drift detection. It may
+use npm's cache or registry to install the package's runtime dependency. The npm transport
+integration test in `verify` uses a local HTTP registry and a real npm tarball; no package
+is published and package lifecycle scripts are disabled.
+
+The upgrade check uses the published **1.1.1** baseline rather than `latest`, so it continues
+testing an actual upgrade after a new version is published. It checks authored edits,
+complete resources, human-owned output prose, default source paths, explicit vault
+conversion, and cleanup. Registry failures fail the check. To test another exact baseline,
+run `npm run test:upgrade -- --from 1.1.0`.
+
+The tag-triggered release workflow runs verification and both smoke checks before npm
+publishing. See [the release procedure](docs/releasing.md).
 
 ## The one rule that catches people
 

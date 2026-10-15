@@ -8,8 +8,9 @@ import { parseFrontmatter, stringifyFrontmatter } from '../core/frontmatter.js';
 import { WondevError } from '../util/errors.js';
 import { wondevVersion } from '../util/version.js';
 import { listFilesRecursive, normalizeEol, pathExists, writeFileAtomic } from '../util/fs.js';
-import { isInsideRoot, toPosix } from '../util/paths.js';
+import { createRootGuard, isInsideRoot, toPosix } from '../util/paths.js';
 import { info, plural, step, style, success, warn } from '../util/log.js';
+import { rewriteNoteTargets } from '../core/links.js';
 
 /**
  * Read an existing project's agent context back into `.wondev/`.
@@ -76,6 +77,7 @@ interface Planned {
   rel: string;
   content: string;
   from: string;
+  encoding?: 'base64';
 }
 
 /** Filenames that are whole-project context in someone else's format. */
@@ -205,7 +207,8 @@ export async function runAdopt(root: string, options: AdoptOptions = {}): Promis
   }
 
   for (const p of unique) {
-    await writeFileAtomic(path.join(base, p.rel), p.content);
+    await createRootGuard(root)(`${WONDEV_DIR}/${p.rel}`);
+    await writeFileAtomic(path.join(base, p.rel), p.encoding ? Buffer.from(p.content, 'base64') : p.content);
   }
   await writeFileAtomic(path.join(base, CONFIG_FILE), renderAdoptedConfig(path.basename(root), targets));
 
@@ -228,6 +231,7 @@ async function adoptClaudeDir(
 ): Promise<Planned[]> {
   const out: Planned[] = [];
   const claudeDir = path.join(root, '.claude');
+  await createRootGuard(root)('.claude/.source-check');
   if (!(await pathExists(claudeDir))) return out;
   targets.add('claude');
 
@@ -239,17 +243,17 @@ async function adoptClaudeDir(
       const parts = posix.split('/');
       const name = parts[0];
       if (!name || parts.length < 2) continue;
-      const raw = normalizeEol(await fs.readFile(path.join(skillsDir, rel), 'utf8'));
+      const raw = await fs.readFile(path.join(skillsDir, rel));
       if (parts[1] === 'SKILL.md' && parts.length === 2) {
-        out.push({ rel: `skills/${name}/SKILL.md`, from: `.claude/skills/${posix}`, content: raw });
-      } else if (posix.endsWith('.md')) {
+        out.push({ rel: `skills/${name}/SKILL.md`, from: `.claude/skills/${posix}`, content: normalizeEol(raw.toString('utf8')) });
+      } else if (!parts.some((part) => part.startsWith('.')) && !posix.endsWith('.new')) {
         out.push({
           rel: `skills/${name}/${parts.slice(1).join('/')}`,
           from: `.claude/skills/${posix}`,
-          content: raw,
+          content: raw.toString('base64'), encoding: 'base64',
         });
       } else {
-        skipped.push(`.claude/skills/${posix} (attachments must be .md)`);
+        skipped.push(`.claude/skills/${posix} (hidden or pending resource)`);
       }
     }
   }
@@ -296,22 +300,29 @@ async function adoptVault(
   }
 
   const abs = path.join(root, vaultRel);
+  await createRootGuard(root)(`${vaultRel}/.source-check`);
   if (!(await pathExists(abs))) {
     throw new WondevError(`No such directory: ${vaultRel}`);
   }
 
-  const files = (await listFilesRecursive(abs)).map(toPosix);
+  const files = (await listFilesRecursive(abs)).map(toPosix).filter((rel) => !rel.split('/').some((part) => part.startsWith('.')));
 
   // Renaming happens first, in full, because the bodies have to be rewritten against the
   // complete map. `[[Runbook Deployment HA]]` stops resolving the moment that note becomes
   // `runbook-deployment-ha`, and wondev treats an unresolved link as an error -- so a vault
   // that was internally consistent would fail to build immediately after being adopted.
   const renames = new Map<string, string>();
+  const ambiguous = new Set<string>();
+  const slug = (rel: string): string => rel.replace(/\.md$/, '').split('/').map(slugFromFilename).join('/');
   for (const posix of files) {
     if (!posix.endsWith('.md')) continue;
     const base = path.posix.basename(posix, '.md');
-    renames.set(base, slugFromFilename(base));
+    const full = posix.replace(/\.md$/, '');
+    if (renames.has(base) && renames.get(base) !== slug(posix)) ambiguous.add(base);
+    renames.set(base, slug(posix));
+    renames.set(full, slug(posix));
   }
+  for (const base of ambiguous) renames.delete(base);
 
   const out: Planned[] = [];
   for (const posix of files) {
@@ -328,10 +339,16 @@ async function adoptVault(
     // Everything already in the file is kept: a vault's own vocabulary survives in `extra`,
     // and adopt has no business deciding which of someone's keys matter.
     const front: Record<string, unknown> = { ...applyKeyMap(data, keyMap), title, always: false };
+    const rename = (target: string, relative: boolean): string | undefined => {
+      const absolute = relative || target.startsWith('.') ? path.posix.normalize(path.posix.join(path.posix.dirname(posix), target)) : target;
+      const renamed = renames.get(absolute);
+      return renamed === undefined ? undefined : relative ? path.posix.relative(path.posix.dirname(slug(posix)), renamed) : renamed;
+    };
+    if (Array.isArray(front['related'])) front['related'] = front['related'].map((r) => typeof r === 'string' ? r.includes('[[') ? rewriteNoteTargets(r, rename) : rename(r, false) ?? r : r);
     out.push({
-      rel: `memory/${slugFromFilename(base)}.md`,
+      rel: `memory/${slug(posix)}.md`,
       from: `${vaultRel}/${posix}`,
-      content: stringifyFrontmatter(front, rewriteWikilinks(body, renames)),
+      content: stringifyFrontmatter(front, rewriteNoteTargets(body, rename)),
     });
   }
   return out;
@@ -383,10 +400,7 @@ function reportDanglingLinks(planned: Planned[]): void {
  * already dangling before the migration.
  */
 export function rewriteWikilinks(body: string, renames: Map<string, string>): string {
-  return body.replace(/\[\[([^\]|#]+)([^\]]*)\]\]/g, (whole, target: string, rest: string) => {
-    const renamed = renames.get(target.trim());
-    return renamed === undefined ? whole : `[[${renamed}${rest}]]`;
-  });
+  return rewriteNoteTargets(body, (target, relative) => relative ? undefined : renames.get(target.trim()));
 }
 
 function renderAdoptedConfig(name: string, targets: string[]): string {

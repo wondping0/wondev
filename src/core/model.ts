@@ -7,6 +7,15 @@
 
 /** A durable project fact: architecture, conventions, a decision record, the glossary. */
 export interface MemoryDoc {
+  /** Stable identity independent of title and source filename. */
+  id?: string;
+  kind?: string;
+  status?: 'draft' | 'active' | 'archived';
+  related?: string[];
+  evidence?: string[];
+  aliases?: string[];
+  /** Path without extension, relative to the configured Obsidian vault. */
+  vaultPath?: string;
   /** Path-like id without extension, e.g. `architecture` or `decisions/0001-use-esm`. */
   slug: string;
   title: string;
@@ -28,7 +37,7 @@ export interface MemoryDoc {
    */
   extra: Record<string, unknown>;
   body: string;
-  /** Source path relative to `.wondev/`, always forward-slashed. */
+  /** Source path relative to the repository root, always forward-slashed. */
   sourcePath: string;
 }
 
@@ -42,6 +51,9 @@ export interface Attachment {
   /** Path relative to the skill directory, forward-slashed, e.g. `references/query.md`. */
   relPath: string;
   content: string;
+  /** Non-Markdown resources retain their original bytes. */
+  encoding?: 'base64';
+  executable?: boolean;
 }
 
 /** A reusable procedure the agent should follow when its trigger condition matches. */
@@ -62,6 +74,8 @@ export interface Skill {
   attachments: Attachment[];
   body: string;
   sourcePath: string;
+  /** Portable Agent Skills metadata retained when compiling native skills. */
+  frontmatter?: Record<string, unknown>;
 }
 
 /** A repeatable prompt the user invokes explicitly. */
@@ -96,6 +110,8 @@ export interface Project {
   skills: Skill[];
   commands: Command[];
   agents: Agent[];
+  /** Opt-in bootstrap guidance for active vaults. */
+  contextEnabled?: boolean;
 }
 
 /** How much of a file wondev owns. */
@@ -106,6 +122,10 @@ export interface RenderedFile {
   path: string;
   content: string;
   mode: WriteMode;
+  /** Owned resource copied verbatim, without a generated Markdown header. */
+  raw?: boolean;
+  encoding?: 'base64';
+  executable?: boolean;
 }
 
 /** Maps wondev's canonical frontmatter fields onto a target's own key names. */

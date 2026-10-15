@@ -1,11 +1,20 @@
 import { cleanAll, loadManifest } from '../core/writer.js';
 import { info, step, style, success } from '../util/log.js';
+import { withProjectLock } from '../util/lock.js';
 
 /**
  * Remove exactly what the manifest records and nothing else. Files wondev only partly owns
  * keep the user's content and lose just the managed region.
  */
 export async function runClean(root: string): Promise<void> {
+  if (!Object.keys((await loadManifest(root)).files).length) {
+    info('Nothing to clean — no generated files are tracked.');
+    return;
+  }
+  return withProjectLock(root, () => cleanLocked(root));
+}
+
+async function cleanLocked(root: string): Promise<void> {
   const manifest = await loadManifest(root);
   const tracked = Object.keys(manifest.files);
 

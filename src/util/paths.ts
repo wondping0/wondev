@@ -76,9 +76,18 @@ export function createRootGuard(root: string): (rel: string) => Promise<void> {
     }
 
     const dir = path.dirname(absFrom(root, rel));
-    if (verified.has(dir)) return;
-
     const base = await resolveRoot();
+    // A leaf symlink must be checked even when its parent was already verified.
+    const leaf = await fs.lstat(absFrom(root, rel)).catch((err: NodeJS.ErrnoException) => {
+      if (err.code === 'ENOENT') return null;
+      throw err;
+    });
+    if (leaf?.isSymbolicLink()) {
+      const target = await fs.realpath(absFrom(root, rel));
+      const relative = path.relative(base, target);
+      if (relative.startsWith('..') || path.isAbsolute(relative)) throw new WondevError(`Refusing to follow a symlink that leaves the project: ${rel}`);
+    }
+    if (verified.has(dir)) return;
     const real = await realAncestor(dir);
     const relative = real === null ? '..' : path.relative(base, real);
 

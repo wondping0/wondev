@@ -1,9 +1,11 @@
 import path from 'node:path';
 import { stringifyFrontmatter } from '../core/frontmatter.js';
-import { wondevDir } from '../core/config.js';
+import { loadConfig, sourceFile, wondevDir } from '../core/config.js';
+import { createRootGuard } from '../util/paths.js';
 import { WondevError } from '../util/errors.js';
 import { pathExists, writeFileAtomic } from '../util/fs.js';
 import { info, style, success } from '../util/log.js';
+import { withProjectLock } from '../util/lock.js';
 
 export type ArtifactKind = 'skill' | 'memory' | 'command' | 'agent';
 
@@ -19,6 +21,11 @@ export function parseKind(raw: string): ArtifactKind {
 }
 
 export async function runAdd(root: string, kind: ArtifactKind, name: string): Promise<void> {
+  await loadConfig(root);
+  return withProjectLock(root, () => addLocked(root, kind, name));
+}
+
+async function addLocked(root: string, kind: ArtifactKind, name: string): Promise<void> {
   if (!NAME_PATTERN.test(name)) {
     throw new WondevError(
       `"${name}" is not a valid name.`,
@@ -31,7 +38,12 @@ export async function runAdd(root: string, kind: ArtifactKind, name: string): Pr
     throw new WondevError('No .wondev/ directory here.', 'Run `wondev init` first.');
   }
 
-  const { file, content } = scaffold(base, kind, name);
+  const config = await loadConfig(root);
+  const template = scaffold(base, kind, name);
+  const rel = sourceFile(path.relative(base, template.file).replace(/\\/g, '/'), config.sources);
+  const file = path.join(root, rel);
+  const content = template.content;
+  await createRootGuard(root)(rel);
   if (await pathExists(file)) {
     throw new WondevError(`${path.relative(root, file)} already exists.`);
   }

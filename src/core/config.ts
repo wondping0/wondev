@@ -15,10 +15,59 @@ import type {
 import { BUILTIN_TARGETS, DEFAULT_TARGETS, knownTargetNames, resolveAlias } from './registry.js';
 import { WondevError } from '../util/errors.js';
 import { readFileIfExists, writeFileAtomic } from '../util/fs.js';
-import { isInsideRoot } from '../util/paths.js';
+import { createRootGuard, isInsideRoot, toPosix } from '../util/paths.js';
 
 export const WONDEV_DIR = '.wondev';
 export const CONFIG_FILE = 'wondev.yaml';
+
+export const SOURCE_KINDS = ['memory', 'skills', 'commands', 'agents', 'sessions'] as const;
+export type SourceKind = typeof SOURCE_KINDS[number];
+export type SourceConfig = Partial<Record<SourceKind, string>>;
+export interface SkillProfile { skills: string[] }
+
+export function sourceDirectory(kind: SourceKind, sources: SourceConfig = {}): string {
+  return sources[kind] ?? `${WONDEV_DIR}/${kind}`;
+}
+
+/** Resolve a template key without changing the key used by template provenance. */
+export function sourceFile(rel: string, sources: SourceConfig = {}): string {
+  const [kind, ...rest] = rel.split('/');
+  return SOURCE_KINDS.includes(kind as SourceKind)
+    ? `${sourceDirectory(kind as SourceKind, sources)}/${rest.join('/')}`
+    : `${WONDEV_DIR}/${rel}`;
+}
+
+export function projectDirectory(value: unknown, label: string): string {
+  if (typeof value !== 'string' || !value.trim() || !isInsideRoot(value) || /[\\*?\[\]{}]/.test(value)) {
+    throw new WondevError(`${label} must be a relative directory inside the project.`);
+  }
+  const normalized = toPosix(path.normalize(value.trim())).replace(/\/$/, '');
+  if (normalized === '.') throw new WondevError(`${label} cannot be the project root.`);
+  return normalized;
+}
+
+export function readSources(value: unknown): SourceConfig {
+  if (value === undefined) return {};
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new WondevError('sources must be a mapping.');
+  }
+  const sources: SourceConfig = {};
+  for (const [key, raw] of Object.entries(value)) {
+    if (!SOURCE_KINDS.includes(key as SourceKind)) throw new WondevError(`Unknown source kind: ${key}`);
+    sources[key as SourceKind] = projectDirectory(raw, `sources.${key}`);
+  }
+  const directories = SOURCE_KINDS.map((kind) => sourceDirectory(kind, sources));
+  for (let i = 0; i < directories.length; i++) {
+    for (let j = i + 1; j < directories.length; j++) {
+      const a = directories[i]!.toLowerCase();
+      const b = directories[j]!.toLowerCase();
+      if (a === b || a.startsWith(`${b}/`) || b.startsWith(`${a}/`)) {
+        throw new WondevError(`Source directories overlap: ${directories[i]} and ${directories[j]}`);
+      }
+    }
+  }
+  return sources;
+}
 
 /** An extra index column, drawing on a frontmatter key wondev does not interpret. */
 export interface IndexColumn {
@@ -50,6 +99,11 @@ export interface WondevConfig {
   wondevVersion?: string;
   /** Memory index settings. Absent means no index is generated. */
   index?: IndexConfig;
+  sources?: SourceConfig;
+  /** Obsidian link paths are relative to this directory. */
+  vault?: string;
+  profiles?: Record<string, SkillProfile>;
+  profile?: string;
 }
 
 export function wondevDir(root: string): string {
@@ -61,6 +115,7 @@ export function configPath(root: string): string {
 }
 
 export async function loadConfig(root: string): Promise<WondevConfig> {
+  await createRootGuard(root)(`${WONDEV_DIR}/${CONFIG_FILE}`);
   const file = configPath(root);
   const raw = await readFileIfExists(file);
   if (raw === null) {
@@ -103,6 +158,22 @@ export async function loadConfig(root: string): Promise<WondevConfig> {
   }
 
   const config: WondevConfig = { name, targets, customTargets, schema };
+  if (obj['sources'] !== undefined) config.sources = readSources(obj['sources']);
+  if (obj['vault'] !== undefined) config.vault = projectDirectory(obj['vault'], 'vault');
+  if (obj['profiles'] !== undefined) {
+    const profiles = obj['profiles'];
+    if (!profiles || typeof profiles !== 'object' || Array.isArray(profiles)) throw new WondevError('profiles must be a mapping.');
+    config.profiles = {};
+    for (const [key, value] of Object.entries(profiles)) {
+      const skills = (value as SkillProfile | null)?.skills;
+      if (!/^[a-z0-9][a-z0-9-]*$/.test(key) || !Array.isArray(skills) || skills.some((s) => typeof s !== 'string' || !s.trim())) throw new WondevError(`profiles.${key} needs a skills list of names or glob patterns.`);
+      config.profiles[key] = { skills };
+    }
+  }
+  if (obj['profile'] !== undefined) {
+    if (typeof obj['profile'] !== 'string' || !Object.hasOwn(config.profiles ?? {}, obj['profile'])) throw new WondevError('profile must name a configured profile.');
+    config.profile = obj['profile'];
+  }
   const writtenBy = typeof obj['wondevVersion'] === 'string' ? obj['wondevVersion'] : undefined;
   if (writtenBy) config.wondevVersion = writtenBy;
   const index = readIndex(obj['index']);

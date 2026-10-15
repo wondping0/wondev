@@ -1,5 +1,7 @@
 import type { NamedTarget } from '../core/model.js';
-import { INDEX_OWNER, renderAll } from '../core/render/index.js';
+import { INDEX_OWNER } from '../core/render/index.js';
+import { projectOutput, REVIEW_OWNER } from './output.js';
+import { withProjectLock } from '../util/lock.js';
 import { deprecationNotice } from '../core/registry.js';
 import { hasErrors } from '../core/source.js';
 import {
@@ -19,15 +21,23 @@ export interface BuildOptions {
   dryRun?: boolean;
   target?: string | undefined;
   quiet?: boolean;
+  profile?: string | undefined;
 }
 
 export async function runBuild(root: string, options: BuildOptions = {}): Promise<void> {
-  const ctx = await loadContext(root);
+  // Validate existence before acquiring a lock, which creates the state directory.
+  await loadContext(root, options.profile);
+  if (options.dryRun) return buildLocked(root, options);
+  return withProjectLock(root, () => buildLocked(root, options));
+}
+
+async function buildLocked(root: string, options: BuildOptions): Promise<void> {
+  const ctx = await loadContext(root, options.profile);
   reportIssues(ctx);
 
   const targets = options.target ? selectTarget(ctx, options.target) : ctx.targets;
   if (!options.quiet) warnDeprecated(targets);
-  const { files, owners } = renderAll(ctx.project, targets, ctx.config.index);
+  const { files, owners } = await projectOutput(ctx, targets);
   const manifest = await loadManifest(root);
   const plan = await planWrites(root, files, owners, manifest);
 
@@ -44,7 +54,7 @@ export async function runBuild(root: string, options: BuildOptions = {}): Promis
   // Only a full build may retire another target's files. See applyPlan. The index is
   // rendered whatever the narrowing, so it counts as built.
   const builtTargets = options.target
-    ? new Set([...targets.map((t) => t.name), INDEX_OWNER])
+    ? new Set([...targets.map((t) => t.name), INDEX_OWNER, REVIEW_OWNER])
     : undefined;
   const { written, removed } = await applyPlan(root, plan, manifest, builtTargets);
 

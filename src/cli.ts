@@ -2,7 +2,7 @@
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { BUILTIN_TARGETS, TARGET_ALIASES, targetsAddedSince } from './core/registry.js';
+import { BUILTIN_TARGETS, TARGET_ALIASES, targetCapabilities, targetsAddedSince } from './core/registry.js';
 import { isWondevError, WondevError } from './util/errors.js';
 import { readFileIfExists } from './util/fs.js';
 import { error, info, setColor, style, warn } from './util/log.js';
@@ -16,8 +16,9 @@ ${style.bold('Usage')}
 ${style.bold('Commands')}
   init                     Scaffold .wondev/ with the starter pack, then build
   adopt                    Read existing agent config back into .wondev/
-  build                    Compile .wondev/ into every enabled target
-  watch                    Rebuild whenever .wondev/ changes
+  vault [dir]              Move sources into an active Obsidian vault (default: knowledge)
+  build                    Compile configured sources into every enabled target
+  watch                    Rebuild when configured sources or config change
   add <type> <name>        Add a skill, memory, command, or agent
   remove <type> <name>     Delete one, and sweep the output it produced
                            (type: skill|memory|command|agent)
@@ -28,6 +29,15 @@ ${style.bold('Commands')}
   upgrade                  Update starter-pack files, preserving your edits
   doctor                   Diagnose this project and report problems
   targets                  List known targets and what reads them
+  context                  Select memory and skills for a task within a token budget
+  memory verify <note>     Record evidence after checking a note against the code
+  memory stale             Report changed, missing, or unverified evidence
+  skills validate          Validate portable skill metadata
+  skills eval <cases.json> Test positive and negative skill trigger cases
+  skills install <source> Install a versioned local: or npm: skill pack
+  skills update <name>    Preview or apply upstream changes while preserving edits
+  skills sync              Restore pack files from locked versions and checksums
+  session <action>         Record work; propose, review, apply, or reject memory updates
 
 ${style.bold('Options')}
   --cwd <dir>              Run against a different project directory
@@ -35,17 +45,27 @@ ${style.bold('Options')}
   --all                    init: enable every known target
   --force                  init, adopt: overwrite .wondev/ · build: overwrite conflicting files
   --target <name>          build: build only one target
-  --dry-run                build, migrate, upgrade, adopt, remove: show changes, write nothing
-  --no-build               remove: delete the source without rebuilding
+  --dry-run                build, migrate, upgrade, adopt, remove, vault, skills: preview changes
+  --no-build               remove, skills, session apply: skip rebuilding generated output
   --only <path>            upgrade: limit to one starter file or directory
   --restore                upgrade: re-add starter files you deleted
   --no-new                 upgrade: skip templates that are new in this release
   --new                    targets: only those added since you initialised
-  --verbose                targets: also show when each output path was last verified
-  --vault <dir>            adopt: also take a markdown directory in as memory
+  --verbose                targets: show compiler capabilities and path verification dates
+  --vault <dir>            init: create active vault; adopt: import existing markdown
   --map <from=to>          adopt: rename a frontmatter key (repeatable)
   --online                 doctor: also ask npm whether a newer wondev exists
   --no-color               Disable coloured output
+  --task <text>            context: task to select guidance for
+  --files <a,b>            context: repository paths being worked on
+  --budget <tokens>        context: ceiling for the complete output (default: 4000)
+  --explain                context: include selection reasons
+  --json                   context, memory stale: emit machine-readable output
+  --against <evidence>     memory verify: describe the check actually performed
+  --profile <name>         build, watch, check, context, list, skills: select a skill profile
+  --input <file>           session record/propose: JSON summary or revised memory Markdown
+  --review-hash <hash>     session apply: hash printed by session review
+  --source <source>        skills update: select a new local: or npm: source/version
   -h, --help               Show this help
   -v, --version            Show version
 
@@ -111,6 +131,8 @@ async function listTargets(root: string, onlyNew: boolean, verbose = false): Pro
       info(`  ${' '.repeat(width)}  ${style.dim(`read by ${entry.readBy.join(', ')}`)}`);
     }
     if (verbose) {
+      const capabilities = targetCapabilities(entry.target);
+      info(style.dim(`  skills: ${capabilities.skills}; resources: ${capabilities.resources}; scoping: ${capabilities.scoping}; agents: ${capabilities.agents}`));
       const when = entry.pathVerified
         ? `path verified ${entry.pathVerified}`
         : 'path never verified against vendor docs';
@@ -181,6 +203,16 @@ export async function main(argv: string[]): Promise<number> {
       map: { type: 'string', multiple: true },
       verbose: { type: 'boolean' },
       'no-build': { type: 'boolean' },
+      task: { type: 'string' },
+      files: { type: 'string' },
+      budget: { type: 'string' },
+      explain: { type: 'boolean' },
+      json: { type: 'boolean' },
+      against: { type: 'string' },
+      profile: { type: 'string' },
+      input: { type: 'string' },
+      'review-hash': { type: 'string' },
+      source: { type: 'string' },
     },
   });
 
@@ -200,6 +232,41 @@ export async function main(argv: string[]): Promise<number> {
   const root = path.resolve(values.cwd ?? process.cwd());
 
   switch (command) {
+    case 'session': {
+      const { runSession } = await import('./commands/session.js');
+      await runSession(root, positionals.slice(1), { input: values.input, reviewHash: values['review-hash'], noBuild: values['no-build'] === true });
+      return 0;
+    }
+    case 'context': {
+      const { runContext } = await import('./commands/select-context.js');
+      await runContext(root, {
+        profile: values.profile,
+        ...(values.task ? { task: values.task } : {}),
+        ...(values.files ? { files: values.files.split(',').map((f) => f.trim()).filter(Boolean) } : {}),
+        ...(values.budget ? { budget: Number(values.budget) } : {}),
+        explain: values.explain === true, format: values.json ? 'json' : 'markdown',
+      });
+      return 0;
+    }
+    case 'skills': {
+      if (['install', 'update', 'sync'].includes(positionals[1] ?? '')) {
+        const { runPacks } = await import('./commands/packs.js');
+        await runPacks(root, positionals[1]!, positionals[2], { dryRun: values['dry-run'] === true, source: values.source, noBuild: values['no-build'] === true });
+        return 0;
+      }
+      const { runSkillValidate, runSkillEval } = await import('./commands/skills.js');
+      if (positionals[1] === 'validate') await runSkillValidate(root, values.profile);
+      else if (positionals[1] === 'eval' && positionals[2]) await runSkillEval(root, positionals[2], values.profile);
+      else throw new WondevError('Usage: wondev skills validate | skills eval <cases.json>');
+      return 0;
+    }
+    case 'memory': {
+      const { runMemoryVerify, runMemoryStale } = await import('./commands/memory.js');
+      if (positionals[1] === 'stale') await runMemoryStale(root, values.json === true);
+      else if (positionals[1] === 'verify' && positionals[2]) await runMemoryVerify(root, positionals[2], values.against ?? '');
+      else throw new WondevError('Usage: wondev memory stale [--json] | memory verify <note> --against <check>');
+      return 0;
+    }
     case 'init': {
       const { runInit } = await import('./commands/init.js');
       await runInit(root, {
@@ -207,7 +274,14 @@ export async function main(argv: string[]): Promise<number> {
         all: values.all === true,
         force: values.force === true,
         skipBuild: values['skip-build'] === true,
+        vault: values.vault,
       });
+      return 0;
+    }
+
+    case 'vault': {
+      const { runVault } = await import('./commands/vault.js');
+      await runVault(root, positionals[1], values['dry-run'] === true);
       return 0;
     }
 
@@ -217,13 +291,14 @@ export async function main(argv: string[]): Promise<number> {
         force: values.force === true,
         dryRun: values['dry-run'] === true,
         target: values.target,
+        profile: values.profile,
       });
       return 0;
     }
 
     case 'watch': {
       const { runWatch } = await import('./commands/watch.js');
-      await runWatch(root, { force: values.force === true, target: values.target });
+      await runWatch(root, { force: values.force === true, target: values.target, profile: values.profile });
       return 0;
     }
 
@@ -242,7 +317,7 @@ export async function main(argv: string[]): Promise<number> {
 
     case 'check': {
       const { runCheck } = await import('./commands/check.js');
-      await runCheck(root);
+      await runCheck(root, values.profile);
       return 0;
     }
 
@@ -303,7 +378,7 @@ export async function main(argv: string[]): Promise<number> {
 
     case 'list': {
       const { runList } = await import('./commands/list.js');
-      await runList(root);
+      await runList(root, values.profile);
       return 0;
     }
 

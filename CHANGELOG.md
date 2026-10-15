@@ -11,6 +11,38 @@ a patch, because it makes `wondev check` fail in every project that upgrades.
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-15
+
+### Added
+
+- Active Obsidian vaults with configurable source locations, explicit vault conversion,
+  application knowledge templates, Bases views, and an evidence-review report.
+- Stable memory identities, lifecycle statuses, aliases, related-note links, and evidence
+  patterns. Task context selection combines paths, lexical relevance, and bounded graph
+  expansion, with explanations and a budget covering the complete Markdown or JSON output.
+- Explicit memory verification and fingerprints that detect changed claims, modified
+  evidence, additions, and deletions.
+- Portable skill resources including scripts and binary assets, standard metadata,
+  activation profiles, compiler capability reporting, and trigger evaluation cases.
+- Local/npm skill packs with exact versions, checksums, frozen sync, update previews,
+  and conflict offers kept outside active skill sources.
+- Unique session records and reviewable memory proposals with reviewed-content hashes,
+  optimistic conflict detection, resumable application, and cooperative writer locks.
+- Public APIs, CLI workflows, and examples in `docs/knowledge.md`.
+- Cross-platform package and published-version upgrade smoke checks in CI, with the same
+  checks required by the release workflow before publishing.
+- Packaged ignore rules for transient locks and update offers, installed through init and
+  upgrade with template provenance preserved.
+
+### Changed
+
+- Vault import preserves normalized directory structure and rewrites relative Markdown,
+  labeled, anchored, and frontmatter links while preserving code examples.
+- Skill resources are copied verbatim; generated Markdown notices now refer to configured
+  sources. This changes output bytes: rebuild and commit generated output after upgrading.
+- Source schema remains 1. Existing source locations are defaults; vault conversion and
+  skill pack operations are explicit. No new runtime dependency or background service.
+
 ## [1.1.1] - 2026-08-12
 
 Generated output is byte-identical to 1.1.0. Nothing needs rebuilding.
