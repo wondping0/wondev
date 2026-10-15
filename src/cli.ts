@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 import path from 'node:path';
+import { realpathSync } from 'node:fs';
 import { parseArgs } from 'node:util';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 import { BUILTIN_TARGETS, TARGET_ALIASES, targetCapabilities, targetsAddedSince } from './core/registry.js';
 import { isWondevError, WondevError } from './util/errors.js';
 import { readFileIfExists } from './util/fs.js';
@@ -421,9 +422,17 @@ export function reportFailure(err: unknown): number {
 // Only when this file is what node was asked to run. Without the guard, importing the module
 // -- which is the only way to test any of the above -- would execute the CLI against the
 // test runner's own argv.
-const invokedDirectly =
-  process.argv[1] !== undefined &&
-  import.meta.url === pathToFileURL(process.argv[1]).href;
+const invokedDirectly = (() => {
+  if (process.argv[1] === undefined) return false;
+  try {
+    // npm's Unix bin links and macOS temporary directories can contain symlinks. Node
+    // resolves import.meta.url, but argv keeps the requested spelling of the entry path.
+    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    // An importer can provide a synthetic argv (for example node reading from stdin).
+    return false;
+  }
+})();
 
 if (invokedDirectly) {
   main(process.argv.slice(2))

@@ -43,6 +43,11 @@ a patch, because it makes `wondev check` fail in every project that upgrades.
 - Source schema remains 1. Existing source locations are defaults; vault conversion and
   skill pack operations are explicit. No new runtime dependency or background service.
 
+### Fixed
+
+- The installed CLI now runs through npm's Unix executable symlinks and symlinked parent
+  directories instead of silently exiting without output.
+
 ## [1.1.1] - 2026-08-12
 
 Generated output is byte-identical to 1.1.0. Nothing needs rebuilding.

@@ -57,9 +57,9 @@ Implementation paths in this table are relative to `src/`; test paths are relati
 
 ## Final validation
 
-- `npm run verify`: typecheck, build, and **448 tests across 33 files passed**.
-- Coverage after the packaging follow-up: statements **91.70%**, branches **86.81%**,
-  functions **94.55%**, lines **92.97%**. Existing thresholds (90/83/92/91) were retained.
+- `npm run verify`: typecheck, build, and **449 tests across 33 files passed**.
+- Coverage after the release follow-up: statements **91.65%**, branches **86.76%**,
+  functions **94.56%**, lines **92.94%**. Existing thresholds (90/83/92/91) were retained.
 - `npm run test:package`: packed and installed wondev **1.2.0**, then passed executable,
   vault, context, verification, complete-resource, proposal/apply, sync, and drift checks.
 - `git diff --check` passed. Existing golden fixture files have no diff. Resource/header
@@ -85,6 +85,10 @@ before publishing; release preparation is recorded below.
       npm configuration contents.
 - [x] npm-safe ignore-template packaging installs `.wondev/.gitignore` on both fresh
       initialization and upgrade, checked through the actual installed tarball.
+- [x] The CLI resolves executable symlinks before detecting direct invocation. A spawned
+      regression test covers a symlinked installation directory; the package smoke test
+      also runs the actual npm executable link on Unix hosts.
 
-These workflow changes have been checked locally; hosted matrix results require a push.
+Local verification is recorded above; hosted matrix results are attached to
+[PR #6](https://github.com/wondping0/wondev/pull/6).
 See [the release procedure](releasing.md) for the remaining external release steps.

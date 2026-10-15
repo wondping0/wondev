@@ -1,4 +1,5 @@
 import { execFile } from 'node:child_process';
+import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
@@ -125,6 +126,14 @@ describe('the actual bin', () => {
 
   it('reports its version', async () => {
     const { stdout } = await run(['--version']);
+    expect(stdout.trim()).toMatch(/^\d+\.\d+\.\d+$/);
+  });
+
+  it('runs through a symlinked directory instead of silently exiting', async () => {
+    const linked = path.join(root, 'linked-install');
+    await fs.symlink(repoRoot, linked, process.platform === 'win32' ? 'junction' : 'dir');
+    const { stdout } = await execFileAsync(process.execPath, [path.join(linked, 'dist/cli.js'), '--version'], { cwd: root, windowsHide: true });
+    expect(stdout.trim()).toBe((await run(['--version'])).stdout.trim());
     expect(stdout.trim()).toMatch(/^\d+\.\d+\.\d+$/);
   });
 

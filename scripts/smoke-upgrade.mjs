@@ -14,7 +14,10 @@ assert.match(previous, /^\d+\.\d+\.\d+(?:-[\da-zA-Z.-]+)?$/, '--from must be an 
 const execute = promisify(execFile);
 const repository = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const npmCli = process.env.npm_execpath ?? path.join(path.dirname(process.execPath), 'node_modules/npm/bin/npm-cli.js');
-const temp = await fs.mkdtemp(path.join(os.tmpdir(), 'wondev-upgrade-smoke-'));
+// The published 1.1.1 CLI cannot recognize a symlinked entry path. Resolve macOS's
+// temporary-directory alias for the baseline; the candidate bin is tested by test:package.
+const tempRoot = await fs.realpath(os.tmpdir());
+const temp = await fs.mkdtemp(path.join(tempRoot, 'wondev-upgrade-smoke-'));
 const app = path.join(temp, 'application');
 const version = JSON.parse(await fs.readFile(path.join(repository, 'package.json'), 'utf8')).version;
 assert.notEqual(previous, version, 'The upgrade baseline must differ from the version under test');
@@ -79,6 +82,6 @@ try {
   assert.equal(await read('knowledge/memory/architecture.md'), editedMemory);
   console.log(`Upgrade ${previous} -> ${version}: user edits, resources, schema, build/check, vault conversion, context, and clean passed.`);
 } finally {
-  const relative = path.relative(os.tmpdir(), temp);
+  const relative = path.relative(tempRoot, temp);
   if (relative.startsWith('wondev-upgrade-smoke-') && !relative.includes(path.sep)) await fs.rm(temp, { recursive: true, force: true });
 }
