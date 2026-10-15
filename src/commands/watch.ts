@@ -22,7 +22,10 @@ const MANIFEST_BASENAME = '.manifest.json';
 export async function runWatch(root: string, options: BuildOptions = {}): Promise<void> {
   const base = wondevDir(root);
 
-  let watchers: fsSync.FSWatcher[] = [];
+  const watchers = new Map<string, fsSync.FSWatcher>();
+  const identities = new Map<string, string>();
+  const nonRecursive = new Set<string>();
+  let sources: string[] = [];
   let timer: NodeJS.Timeout | undefined;
   let building = false;
   let queued = false;
@@ -76,33 +79,53 @@ export async function runWatch(root: string, options: BuildOptions = {}): Promis
   };
 
   const configureWatchers = async (): Promise<void> => {
+    if (stopped) return;
     let config: WondevConfig | undefined;
     try { config = await loadConfig(root); } catch {
       // Keep working watchers while YAML is edited. On startup still observe the config
       // location, otherwise the user cannot recover from an initially malformed file.
-      if (watchers.length) return;
+      if (watchers.size) return;
     }
-    const sources = ['memory', 'skills', 'commands', 'agents'].map((kind) =>
+    sources = ['memory', 'skills', 'commands', 'agents'].map((kind) =>
       sourceDirectory(kind as 'memory' | 'skills' | 'commands' | 'agents', config?.sources));
-    const fresh: fsSync.FSWatcher[] = [];
     const watched = new Set<string>();
     const relevant = (rel: string): boolean => rel === '.wondev/wondev.yaml' || sources.some((source) =>
       rel === source || rel.startsWith(`${source}/`) || source.startsWith(`${rel}/`));
     const watch = async (dir: string): Promise<void> => {
       if (watched.has(dir)) return;
       watched.add(dir);
-      const listener = (event: string, name: string | Buffer | null): void => {
-        const rel = path.relative(root, path.join(dir, name?.toString() ?? '')).replace(/\\/g, '/');
-        if (!name || relevant(rel)) trigger(event, name);
-      };
-      try { fresh.push(fsSync.watch(dir, { recursive: true }, listener)); }
-      catch {
+      const identity = await fs.stat(dir).then((stat) => `${stat.dev}:${stat.ino}`).catch(() => undefined);
+      if (identity === undefined) return;
+      // A replaced directory needs a new handle even though its path is unchanged.
+      if (watchers.has(dir) && identities.get(dir) !== identity) {
+        watchers.get(dir)!.close();
+        watchers.delete(dir);
+        nonRecursive.delete(dir);
+      }
+      // Keep existing subscriptions alive, especially the config watcher. Replacing all
+      // handles after every build can lose an edit while Windows swaps subscriptions.
+      if (!watchers.has(dir)) {
+        const listener = (event: string, name: string | Buffer | null): void => {
+          const rel = path.relative(root, path.join(dir, name?.toString() ?? '')).replace(/\\/g, '/');
+          if (!name || relevant(rel)) trigger(event, name);
+        };
+        try { watchers.set(dir, fsSync.watch(dir, { recursive: true }, listener)); }
+        catch {
+          try {
+            watchers.set(dir, fsSync.watch(dir, listener));
+            nonRecursive.add(dir);
+          } catch { return; /* A parent watcher detects newly created sources. */ }
+        }
+        identities.set(dir, identity);
+      }
+      if (nonRecursive.has(dir)) {
         try {
-          fresh.push(fsSync.watch(dir, listener));
           for (const entry of await fs.readdir(dir, { withFileTypes: true })) {
-            if (entry.isDirectory()) await watch(path.join(dir, entry.name));
+            const child = path.join(dir, entry.name);
+            const rel = path.relative(root, child).replace(/\\/g, '/');
+            if (entry.isDirectory() && relevant(rel)) await watch(child);
           }
-        } catch { /* A parent watcher detects newly created sources. */ }
+        } catch { /* A directory can disappear while its parent reports a rename. */ }
       }
     };
     await watch(base);
@@ -111,9 +134,14 @@ export async function runWatch(root: string, options: BuildOptions = {}): Promis
       while (!fsSync.existsSync(dir) && dir !== root) dir = path.dirname(dir);
       await watch(dir);
     }
-    if (stopped) { for (const w of fresh) w.close(); return; }
-    for (const w of watchers) w.close();
-    watchers = fresh;
+    for (const [dir, watcher] of watchers) {
+      if (stopped || !watched.has(dir)) {
+        watcher.close();
+        watchers.delete(dir);
+        identities.delete(dir);
+        nonRecursive.delete(dir);
+      }
+    }
   };
   await configureWatchers();
   // Readiness means watchers are installed. Building after subscribing closes the gap
@@ -125,7 +153,10 @@ export async function runWatch(root: string, options: BuildOptions = {}): Promis
     const stop = (): void => {
       stopped = true;
       if (timer) clearTimeout(timer);
-      for (const w of watchers) w.close();
+      for (const watcher of watchers.values()) watcher.close();
+      watchers.clear();
+      identities.clear();
+      nonRecursive.clear();
       process.removeListener('SIGINT', stop);
       process.removeListener('SIGTERM', stop);
       resolve();

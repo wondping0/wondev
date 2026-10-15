@@ -57,9 +57,9 @@ Implementation paths in this table are relative to `src/`; test paths are relati
 
 ## Final validation
 
-- `npm run verify`: typecheck, build, and **449 tests across 33 files passed**.
-- Coverage after the release follow-up: statements **91.65%**, branches **86.76%**,
-  functions **94.56%**, lines **92.94%**. Existing thresholds (90/83/92/91) were retained.
+- `npm run verify`: typecheck, build, and **452 tests across 34 files passed**.
+- Coverage after the release follow-up: statements **91.07%**, branches **86.12%**,
+  functions **94.22%**, lines **92.22%**. Existing thresholds (90/83/92/91) were retained.
 - `npm run test:package`: packed and installed wondev **1.2.0**, then passed executable,
   vault, context, verification, complete-resource, proposal/apply, sync, and drift checks.
 - `git diff --check` passed. Existing golden fixture files have no diff. Resource/header
@@ -88,6 +88,10 @@ before publishing; release preparation is recorded below.
 - [x] The CLI resolves executable symlinks before detecting direct invocation. A spawned
       regression test covers a symlinked installation directory; the package smoke test
       also runs the actual npm executable link on Unix hosts.
+- [x] Watchers retain subscriptions across builds and replace them when directory
+      identities change. The source-move test edits immediately after changing config.
+- [x] Atomic replacement retries transient sharing errors with a finite limit; `fs.test.ts`
+      verifies successful recovery, permanent-error cleanup, and preservation of old bytes.
 
 Local verification is recorded above; hosted matrix results are attached to
 [PR #6](https://github.com/wondping0/wondev/pull/6).

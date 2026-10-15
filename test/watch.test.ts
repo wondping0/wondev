@@ -56,7 +56,6 @@ describe('wondev watch', () => {
       const configFile = path.join(root, '.wondev/wondev.yaml');
       const config = await fs.readFile(configFile, 'utf8');
       await fs.writeFile(configFile, config.replace('memory: knowledge/memory', 'memory: knowledge/notes'));
-      await sleep(500);
       await fs.writeFile(path.join(root, 'knowledge/notes/architecture.md'), note.replace('Vault edit reached Claude.', 'Moved source reached Claude.'));
       await until(async () => (await fs.readFile(path.join(root, 'CLAUDE.md'), 'utf8')).includes('Moved source reached Claude.'));
       const count = log.join('').match(/target\(s\)/g)?.length ?? 0;

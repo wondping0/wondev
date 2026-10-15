@@ -46,7 +46,18 @@ export async function writeFileAtomic(target: string, content: string | Uint8Arr
   const tmp = `${target}.wondev-${process.pid}-${crypto.randomBytes(4).toString('hex')}.tmp`;
   try {
     await fs.writeFile(tmp, content, 'utf8');
-    await fs.rename(tmp, target);
+    for (let attempt = 0; ; attempt++) {
+      try {
+        await fs.rename(tmp, target);
+        break;
+      } catch (err) {
+        // On Windows an editor, indexer, or reader can briefly prevent replacement.
+        // Retry the atomic rename without deleting the destination or rewriting bytes.
+        const code = (err as NodeJS.ErrnoException).code;
+        if (attempt >= 5 || !['EPERM', 'EACCES', 'EBUSY'].includes(code ?? '')) throw err;
+        await new Promise((resolve) => setTimeout(resolve, 20 * (attempt + 1)));
+      }
+    }
   } catch (err) {
     await fs.rm(tmp, { force: true }).catch(() => {});
     throw err;

@@ -47,6 +47,10 @@ a patch, because it makes `wondev check` fail in every project that upgrades.
 
 - The installed CLI now runs through npm's Unix executable symlinks and symlinked parent
   directories instead of silently exiting without output.
+- Watch subscriptions remain active across builds, preventing configuration edits from
+  being lost while a source directory is moved.
+- Atomic file replacement retries brief sharing/permission errors without deleting the
+  destination, avoiding failed rebuilds when Windows readers temporarily hold an output.
 
 ## [1.1.1] - 2026-08-12
 
