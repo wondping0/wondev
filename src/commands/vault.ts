@@ -71,6 +71,7 @@ export function vaultScaffold(): Record<string, string> {
         { type: 'table', name: 'Project memory', order: ['file.name', 'kind', 'status', 'verified', 'owner'] },
         { type: 'table', name: 'Modules', filters: 'kind == "module"', order: ['file.name', 'related', 'evidence'] },
         { type: 'table', name: 'Decisions', filters: 'kind == "decision"', order: ['file.name', 'status', 'verified'] },
+        { type: 'table', name: 'Development lessons', filters: 'kind == "lesson"', order: ['file.name', 'learnedFrom', 'evidence', 'verified'] },
         { type: 'table', name: 'Needs verification', filters: '!verified && status != "archived"', order: ['file.name', 'kind', 'evidence'] },
       ],
     }),
@@ -80,6 +81,7 @@ export function vaultScaffold(): Record<string, string> {
     flow: ['Trigger and outcome', 'Steps across modules', 'Contracts and failure handling', 'Related decisions', 'Verification'],
     decision: ['Context', 'Decision', 'Alternatives tried and rejected', 'Consequences', 'Evidence and verification'],
     runbook: ['When to use', 'Prerequisites', 'Procedure', 'Expected result', 'Recovery and verification'],
+    lesson: ['When this applies', 'Observed outcome and evidence', 'Procedure that worked', 'Failed attempts and why', 'Limits and exceptions', 'Verification'],
   };
   for (const [kind, headings] of Object.entries(sections)) {
     files[`templates/${kind}.md`] = stringifyFrontmatter({

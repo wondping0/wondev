@@ -36,6 +36,12 @@ describe('public API', () => {
       'recordSession',
       'proposeMemory',
       'applyMemoryProposal',
+      'proposeLearning',
+      'scanApplication',
+      'runMap',
+      'evaluateContext',
+      'runContextEval',
+      'checkFreshness',
     ]) {
       expect(api, `missing export: ${name}`).toHaveProperty(name);
     }

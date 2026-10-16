@@ -30,6 +30,7 @@ Enable the core Templates plugin to insert the provided templates; its folder is
   .manifest.json
   .templates.json
   .memory.json
+  .map.json                   baselines for generated application-map regions
   skills.lock.json
 knowledge/
   index.md                    managed memory index plus your own introduction
@@ -39,7 +40,7 @@ knowledge/
   commands/
   agents/
   sessions/                   work summaries and proposed memory changes
-  templates/                  module, flow, decision, and runbook templates
+  templates/                  module, flow, decision, runbook, and lesson templates
   dashboards/project.base     Obsidian Bases views
 ```
 
@@ -76,6 +77,42 @@ live connection to the original folder. Ambiguous links require an explicit fold
 Keep one coherent subject per note: a module, cross-module flow, decision, or runbook.
 Record entry points, responsibilities, contracts, invariants, rejected approaches, and the
 checks that demonstrate the note is still accurate.
+
+### Bootstrap understanding from code
+
+```bash
+wondev map --dry-run
+wondev map --exclude "fixtures/**" --exclude "generated/**"
+```
+
+`map` inventories JavaScript/TypeScript files, literal imports/re-exports/require calls,
+test locations, and package manifests. It writes one memory note per source directory and
+package under the configured `memory/map/`, then builds agent output. Package notes list
+declared entry points, script names, dependencies, and links to local packages. Module
+notes link resolved dependencies and consumers, including observed importing test files.
+Code and package scripts are never executed. `--no-build` skips the final build.
+
+Notes contain an owned **observed facts** region and a **Curated understanding** section.
+Write responsibilities, business flows, invariants, design reasons, and links to lessons
+in the curated section. Refreshing preserves that section and frontmatter; editing the
+owned region produces a conflict instead of silently replacing your edits. Commit
+`.wondev/.map.json` with the notes. Stable IDs let a moved note retain its identity.
+Removed modules keep their note with a removal notice so curated knowledge is not deleted;
+review and archive it explicitly. No observation is automatically marked verified.
+
+The mapper resolves relative imports against scanned files, extension equivalents such as
+`.js` to `.ts`, and directory indexes. It does not resolve tsconfig aliases, package exports,
+runtime/computed imports, or framework routing semantics. Syntax failures and unresolved
+imports remain visible; they are not guessed. Babel's [syntax parser](https://babeljs.io/docs/babel-parser)
+reads code without invoking the application's compiler or plugins.
+
+Hidden paths, dependency/vendor directories, `dist`, `build`, `coverage`, configured wondev
+sources, and the vault are excluded. Symlinks are not traversed. Other ignored paths require
+explicit `--exclude` globs; `.gitignore` is not interpreted. Directory names containing glob
+syntax (for example `[id]`) use single-character wildcards in evidence patterns, which can
+include similarly named sibling paths. Scans fail explicitly above 50,000 directory entries,
+10,000 source files, 2 MB per input, or 50 MB total input. Narrow large/generated trees with
+exclusions. The output is a navigation aid; business meaning still needs code inspection.
 
 ```markdown
 ---
@@ -283,8 +320,8 @@ unmanaged skills are refused. Commit your chosen local customizations along with
 npm downloads run in a temporary directory with lifecycle scripts disabled, no binary
 links, and no audit/funding requests. A project's package.json is not changed. Only explicit
 install, update, or sync operations access npm; builds never download anything. Private
-registries use the npm environment already configured on the machine. The core has no new
-runtime dependencies. `WONDEV_NPM_CLI` can identify `npm-cli.js` on unusual installations.
+registries use the npm environment already configured on the machine. Pack transport adds no
+runtime dependency. `WONDEV_NPM_CLI` can identify `npm-cli.js` on unusual installations.
 
 ## Capture results from several agents
 
@@ -330,6 +367,102 @@ application. Avoid simultaneous manual editing of the note being applied.
 
 ## Compatibility and checks
 
+### Make development experience available to the next agent
+
+wondev stores application knowledge in the **consuming application's repository**, not inside
+`node_modules/wondev`. Reinstalling wondev does not discard that knowledge. Committing the
+sources makes the same reviewed lessons available to teammates and other configured agents.
+Reusable development procedures live in skills; use the existing versioned skill-pack
+workflow to share general procedures across projects.
+
+The starter `learn` command guides agents through this loop, including improving an existing
+skill when supported by evidence. It is available as `/learn` on targets with native commands
+and as a named prompt on flattened targets. Existing installations receive it through
+`wondev upgrade` followed by `wondev build`.
+
+The working loop is: retrieve relevant context → inspect current evidence → implement and
+test → record the result → review a durable lesson or update → retrieve it on the next task.
+wondev does not change model weights or guarantee that a host follows instructions. Agent
+entry guidance describes this loop for vaults and projects using map/lesson notes. Retrieval
+remains deterministic and local; no transcript collection or background model call occurs.
+
+After `session record` returns a session ID:
+
+```bash
+wondev session learn <session-id> auth-expiry --files "src/auth/**"
+wondev session review <proposal-id>
+wondev session apply <proposal-id> --review-hash <hash-from-review>
+wondev memory verify auth-expiry --against "Inspected the expiry check and reran its regression test"
+wondev build
+
+# A later task, potentially handled by a different agent:
+wondev context --task "debug login expiry" --files src/auth/session.ts --budget 4000 --explain
+```
+
+`learn` creates a pending proposal for `memory/lessons/auth-expiry.md`, retaining the task,
+outcome, decisions, failed attempts, evidence, and next actions from the session. The lesson
+does not enter active memory until the reviewed proposal is applied. It keeps session/agent
+provenance, explicit file scope, and evidence patterns. Reviewing applicability is essential:
+an approach that failed under one set of conditions is not forbidden universally, and next
+actions remain pending work. A successful apply creates an **unverified**, on-demand lesson;
+verification is a separate claim about the actual checks performed.
+
+Prefer updating an existing related note with `session propose` when it already covers the
+subject. For a repeatable procedure, curate a skill with a precise trigger, prerequisites,
+steps, expected result, and exceptions. A single successful session is not enough evidence
+to rewrite a shared skill automatically. Test its selection together with application memory
+using the evaluation below. New vaults include a lesson template and a Development lessons
+dashboard view; existing vault dashboards remain user-owned and can add a `kind == "lesson"`
+view manually.
+
+### Evaluate what the agent will actually receive
+
+Create a project-owned `context-cases.json` with known tasks and expected/forbidden items:
+
+```json
+[
+  {
+    "task": "debug login expiry",
+    "files": ["src/auth/session.ts"],
+    "budget": 4000,
+    "format": "json",
+    "expected": { "memory": ["auth-expiry"], "skills": ["debugging"] },
+    "forbidden": { "memory": ["billing-overview"] }
+  }
+]
+```
+
+Use actual active memory IDs and skill names in your application; unknown/inactive IDs,
+profile-excluded skills, and contradictory expectations fail validation.
+
+```bash
+wondev context eval context-cases.json
+wondev context eval context-cases.json --profile backend
+```
+
+Evaluation uses the same memory, skills, graph expansion, and complete packet token estimate
+as `context`, at the case's budget (default 4000). It reports selections, missing items,
+forbidden activations, token usage, and overflow errors, and fails the command if any case
+fails. It tests context selection, not the model's reasoning quality or native host skill
+activation. Keep representative positive and negative cases from real development tasks.
+
+### Require current knowledge in CI
+
+```bash
+wondev check --freshness stale
+wondev check --freshness strict --files src/auth/session.ts,test/auth.test.ts
+```
+
+`stale` fails on changed previously verified memory. `strict` additionally fails on
+unverified memory. Both ignore draft/archived notes. `--files` scopes the freshness gate to
+matching evidence/globs, directly edited notes, and all always-on memory; include deleted
+paths as well. It does not scope the usual generated-output drift check. Without these
+flags, existing `check` behavior is unchanged. Strict mode requires evidence-backed
+verification for the included starter notes as well. A rebuild updates generated files but
+cannot satisfy a failed freshness gate; review and verify the actual source claims.
+
+### Compatibility
+
 Existing projects keep source schema 1 and their default paths. All features are additive;
 moving to a vault is explicit. Resource headers change for skill attachments, so this is a
 minor release under wondev's output-version contract. Rebuild and commit generated changes
@@ -337,7 +470,7 @@ when upgrading. No automatic semantic merge, embeddings, background model calls,
 settings ownership, or MCP configuration is introduced.
 
 Commit sources, configuration, verification records, pack locks, template provenance, and
-the usual generated-file manifest. Commit session records according to your project's
+the usual generated-file manifest, plus map baselines when mapping is used. Commit session records according to your project's
 retention policy. Exclude transient `.lock` and review-offer scratch files as appropriate.
 Do not commit private credentials in memory or skill resources.
 

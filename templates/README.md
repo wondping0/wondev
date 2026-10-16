@@ -41,6 +41,7 @@ wondev build          # regenerate every target
 wondev watch          # rebuild as you edit
 wondev add skill <name>
 wondev check          # validate and detect drift (use this in CI)
+wondev map            # observed JS/TS structure; preserve curated understanding
 ```
 
 ## Rules of thumb
@@ -50,3 +51,9 @@ wondev check          # validate and detect drift (use this in CI)
 - Record what was tried and rejected. It stops the same bad idea returning.
 - Be specific enough to act on. "Follow best practices" changes no behaviour.
 - Keep it current. Wrong memory is more harmful than missing memory.
+
+After meaningful development work, the `learn` command guides an agent through recording
+results, reviewing a memory update or new lesson, and improving a reusable skill when the
+evidence supports it. Use `wondev context eval` to test whether a future task receives the
+right memory and skills. Facts are stored in this application's sources; installing a new
+wondev package does not reset them. With an active vault, use its configured source folders.

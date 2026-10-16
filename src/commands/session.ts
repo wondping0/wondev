@@ -1,13 +1,18 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { applyMemoryProposal, proposeMemory, readProposal, recordSession, rejectMemoryProposal, renderProposal, type SessionInput } from '../core/sessions.js';
+import { applyMemoryProposal, proposeLearning, proposeMemory, readProposal, recordSession, rejectMemoryProposal, renderProposal, type SessionInput } from '../core/sessions.js';
 import { createRootGuard } from '../util/paths.js';
 import { WondevError } from '../util/errors.js';
 import { info, success } from '../util/log.js';
 import { runBuild } from './build.js';
 
-export async function runSession(root: string, args: string[], options: { input?: string | undefined; reviewHash?: string | undefined; noBuild?: boolean } = {}): Promise<void> {
+export async function runSession(root: string, args: string[], options: { input?: string | undefined; reviewHash?: string | undefined; noBuild?: boolean; files?: string[] } = {}): Promise<void> {
   const action = args[0];
+  if (action === 'learn') {
+    if (!args[1] || !args[2]) throw new WondevError('Usage: wondev session learn <session-id> <lesson-name> --files src/module/**');
+    info(renderProposal(await proposeLearning(root, args[1], args[2], options.files ?? [])));
+    return;
+  }
   if (action === 'record' || action === 'propose') {
     if (!options.input) throw new WondevError('Use --input with a session JSON file or proposed memory Markdown file.');
     await createRootGuard(root)(options.input);
@@ -23,7 +28,7 @@ export async function runSession(root: string, args: string[], options: { input?
     }
     return;
   }
-  if (!args[1]) throw new WondevError('Usage: wondev session record|propose|review|apply|reject');
+  if (!args[1]) throw new WondevError('Usage: wondev session record|learn|propose|review|apply|reject');
   if (action === 'review') info(renderProposal(await readProposal(root, args[1])));
   else if (action === 'apply') {
     await applyMemoryProposal(root, args[1], options.reviewHash ?? '');

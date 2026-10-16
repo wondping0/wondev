@@ -30,6 +30,7 @@ try {
   assert.equal((await npm(['exec', '--offline', '--', 'wondev', '--version'], app)).trim(), version);
   assert.match(await fs.readFile(path.join(installed, 'docs/knowledge.md'), 'utf8'), /Active vaults/);
   await run('init', '--vault', 'knowledge', '--targets', 'claude,agents');
+  assert.match(await fs.readFile(path.join(app, '.claude/commands/learn.md'), 'utf8'), /Learn from this development task/);
   assert.match(await fs.readFile(path.join(app, '.wondev/.gitignore'), 'utf8'), /^\.lock$/m);
   assert.match(await fs.readFile(path.join(app, '.wondev/.gitignore'), 'utf8'), /^skill-updates\/$/m);
   await write('src/auth/session.ts', 'export const session = true;\n');
@@ -62,7 +63,23 @@ try {
   await run('check');
   await run('skills', 'sync');
   await run('check');
-  console.log(`Packed wondev ${version}: installed executable, vault, context, evidence, complete skill resources, session proposal, sync, and drift checks passed.`);
+  await run('map', '--exclude', 'skill-packs/**');
+  assert((await api.loadProjectContext(app)).project.memory.some((item) => item.id?.startsWith('map-module-')));
+  await run('session', 'learn', session, 'session-boundary', '--files', 'src/auth/**');
+  const proposals = await fs.readdir(path.join(app, 'knowledge/sessions/proposals'));
+  let learning;
+  for (const file of proposals.filter((name) => name.endsWith('.json'))) {
+    const candidate = await api.readProposal(app, file.slice(0, -5));
+    if (candidate.create) learning = candidate;
+  }
+  assert(learning);
+  await run('session', 'apply', learning.id, '--review-hash', api.proposalReviewHash(learning));
+  await write('context-cases.json', JSON.stringify([{ task: 'Document session checks', files: ['src/auth/session.ts'], budget: 10000, expected: { memory: ['session-boundary'] } }]));
+  const evaluation = JSON.parse(await run('context', 'eval', 'context-cases.json'));
+  assert.equal(evaluation[0].passed, true);
+  await run('check', '--freshness', 'stale');
+  await assert.rejects(run('check', '--freshness', 'strict'), /unverified/);
+  console.log(`Packed wondev ${version}: executable, vault, context, evidence, skills, sessions, application map, reviewed learning, context evaluation, and freshness gates passed.`);
 } finally {
   const relative = path.relative(os.tmpdir(), temp);
   if (relative.startsWith('wondev-package-smoke-') && !relative.includes(path.sep)) await fs.rm(temp, { recursive: true, force: true });
