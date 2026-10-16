@@ -31,6 +31,8 @@ ${style.bold('Commands')}
   doctor                   Diagnose this project and report problems
   targets                  List known targets and what reads them
   context                  Select memory and skills for a task within a token budget
+  context eval <cases>     Test memory + skill retrieval under real token budgets
+  map                      Refresh observed JS/TS application structure in memory
   memory verify <note>     Record evidence after checking a note against the code
   memory stale             Report changed, missing, or unverified evidence
   skills validate          Validate portable skill metadata
@@ -39,6 +41,7 @@ ${style.bold('Commands')}
   skills update <name>    Preview or apply upstream changes while preserving edits
   skills sync              Restore pack files from locked versions and checksums
   session <action>         Record work; propose, review, apply, or reject memory updates
+  session learn <id> <name> Propose a reusable lesson from a recorded session
 
 ${style.bold('Options')}
   --cwd <dir>              Run against a different project directory
@@ -46,8 +49,8 @@ ${style.bold('Options')}
   --all                    init: enable every known target
   --force                  init, adopt: overwrite .wondev/ · build: overwrite conflicting files
   --target <name>          build: build only one target
-  --dry-run                build, migrate, upgrade, adopt, remove, vault, skills: preview changes
-  --no-build               remove, skills, session apply: skip rebuilding generated output
+  --dry-run                build, migrate, upgrade, adopt, remove, vault, skills, map: preview
+  --no-build               remove, skills, map, session apply: skip generated output rebuild
   --only <path>            upgrade: limit to one starter file or directory
   --restore                upgrade: re-add starter files you deleted
   --no-new                 upgrade: skip templates that are new in this release
@@ -58,7 +61,7 @@ ${style.bold('Options')}
   --online                 doctor: also ask npm whether a newer wondev exists
   --no-color               Disable coloured output
   --task <text>            context: task to select guidance for
-  --files <a,b>            context: repository paths being worked on
+  --files <a,b>            context/check: changed paths; session learn: evidence paths/globs
   --budget <tokens>        context: ceiling for the complete output (default: 4000)
   --explain                context: include selection reasons
   --json                   context, memory stale: emit machine-readable output
@@ -67,6 +70,8 @@ ${style.bold('Options')}
   --input <file>           session record/propose: JSON summary or revised memory Markdown
   --review-hash <hash>     session apply: hash printed by session review
   --source <source>        skills update: select a new local: or npm: source/version
+  --exclude <glob>         map: exclude repository paths (repeatable)
+  --freshness <policy>     check: fail on stale notes, or strict (also unverified)
   -h, --help               Show this help
   -v, --version            Show version
 
@@ -214,6 +219,8 @@ export async function main(argv: string[]): Promise<number> {
       input: { type: 'string' },
       'review-hash': { type: 'string' },
       source: { type: 'string' },
+      exclude: { type: 'string', multiple: true },
+      freshness: { type: 'string' },
     },
   });
 
@@ -235,10 +242,21 @@ export async function main(argv: string[]): Promise<number> {
   switch (command) {
     case 'session': {
       const { runSession } = await import('./commands/session.js');
-      await runSession(root, positionals.slice(1), { input: values.input, reviewHash: values['review-hash'], noBuild: values['no-build'] === true });
+      await runSession(root, positionals.slice(1), { input: values.input, reviewHash: values['review-hash'], noBuild: values['no-build'] === true, files: values.files?.split(',').map((f) => f.trim()).filter(Boolean) });
+      return 0;
+    }
+    case 'map': {
+      const { runMap } = await import('./commands/map.js');
+      await runMap(root, { dryRun: values['dry-run'] === true, noBuild: values['no-build'] === true, exclude: values.exclude });
       return 0;
     }
     case 'context': {
+      if (positionals[1]) {
+        if (positionals[1] !== 'eval' || !positionals[2]) throw new WondevError('Usage: wondev context eval <cases.json>');
+        const { runContextEval } = await import('./commands/context-eval.js');
+        await runContextEval(root, positionals[2], values.profile);
+        return 0;
+      }
       const { runContext } = await import('./commands/select-context.js');
       await runContext(root, {
         profile: values.profile,
@@ -318,7 +336,8 @@ export async function main(argv: string[]): Promise<number> {
 
     case 'check': {
       const { runCheck } = await import('./commands/check.js');
-      await runCheck(root, values.profile);
+      if (values.freshness !== undefined && !['stale', 'strict'].includes(values.freshness)) throw new WondevError('--freshness must be stale or strict.');
+      await runCheck(root, values.profile, { freshness: values.freshness as 'stale' | 'strict' | undefined, files: values.files?.split(',').map((f) => f.trim()).filter(Boolean) });
       return 0;
     }
 

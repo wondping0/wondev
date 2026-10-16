@@ -48,15 +48,34 @@ try {
   await run('build');
   await run('check');
 
+  let oldProposal;
+  const [major, minor] = previous.split('.').map(Number);
+  if (major > 1 || major === 1 && minor >= 2) {
+    await write('summary.json', JSON.stringify({ agent: 'claude', task: 'Review architecture', outcome: 'The existing deployment boundary remains correct.' }));
+    const id = (await run('session', 'record', '--input', 'summary.json')).trim();
+    await write('proposed.md', editedMemory);
+    await run('session', 'propose', id, 'architecture', '--input', 'proposed.md');
+    oldProposal = (await fs.readdir(path.join(app, '.wondev/sessions/proposals'))).find((name) => name.endsWith('.json')).slice(0, -5);
+  }
+
   const packed = JSON.parse(await npm(['pack', '--ignore-scripts', '--json', '--pack-destination', temp]));
   await npm(['install', '--ignore-scripts', '--no-audit', '--no-fund', path.join(temp, packed[0].filename)], app);
   assert.equal((await run('--version')).trim(), version);
-  await assert.rejects(() => run('check'), (error) => error.code === 1);
+  // Default-layout 1.2 output stays valid until opting into new templates/map/lessons.
+  // 1.1 output differs because the 1.2 resource-header contract changed.
+  if (oldProposal) await run('check');
+  else await assert.rejects(() => run('check'), (error) => error.code === 1);
   await run('migrate');
   await run('upgrade');
   await run('build');
   await run('check');
   await run('doctor');
+  if (oldProposal) {
+    const review = await run('session', 'review', oldProposal);
+    const hash = /Review hash: `([a-f0-9]+)`/.exec(review)?.[1];
+    assert(hash, 'Old proposal still has a reviewable hash');
+    await run('session', 'apply', oldProposal, '--review-hash', hash);
+  }
   assert.match(await read('.wondev/.gitignore'), /^\.lock$/m);
   assert.equal(await read('.wondev/skills/debugging/SKILL.md'), editedSkill);
   assert.equal(await read('.wondev/memory/architecture.md'), editedMemory);

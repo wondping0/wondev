@@ -91,6 +91,7 @@ instead — it reads what you have rather than writing over it.
 
 ```bash
 npx wondev init --vault knowledge --targets claude,agents
+npx wondev map
 npx wondev context --task "fix login" --files src/auth/session.ts --budget 4000 --explain
 npx wondev memory stale
 ```
@@ -100,6 +101,12 @@ flow, decision, and runbook templates, Bases dashboards, evidence fingerprints, 
 task context. Skills can carry scripts and binary assets, be installed as versioned local
 or npm packs, and be selected through profiles. Session records and reviewed proposals
 let several agents contribute memory without overwriting a newer version.
+
+Application maps connect observed code structure to editable Obsidian notes. Reviewed
+`session learn` proposals carry development lessons and failed attempts into future tasks.
+`context eval` checks memory and skill selection together under a token budget, and optional
+`check --freshness stale|strict` gates prevent outdated knowledge from passing CI.
+Knowledge stays in the application repository across agents and npm upgrades.
 
 See the [complete knowledge and skill workflow](docs/knowledge.md) for setup, commands,
 configuration, compatibility, and the limits of automated freshness checks.
@@ -116,6 +123,9 @@ configuration, compatibility, and the limits of automated freshness checks.
 | `wondev remove <type> <name>` | Delete one, and sweep the output it produced |
 | `wondev list` | Show what this project defines, and what each piece costs |
 | `wondev check` | Validate sources and detect drift — exits 1 on failure |
+| `wondev map` | Map JS/TS structure and package relationships into project memory |
+| `wondev context eval <cases.json>` | Evaluate memory and skills under task token budgets |
+| `wondev session learn <id> <name> --files <paths>` | Propose a scoped lesson from a development session |
 | `wondev clean` | Remove generated files, per the manifest |
 | `wondev migrate` | Bring an older `.wondev/` up to the current source schema |
 | `wondev upgrade` | Update starter-pack files, never touching ones you edited |
@@ -343,8 +353,8 @@ Sidebar navigation, every artifact type, per-document token cost, and freshness 
 No scripts, no fonts, no stylesheet, no external requests of any kind — it opens from
 `file://`, survives being emailed, and can be served read-only from a container.
 
-Markdown is converted at build time by a small built-in renderer, so there is still no
-runtime dependency beyond `yaml`. Fenced blocks stay fenced: a Mermaid diagram is shown as
+Markdown is converted at build time by a small built-in renderer, without a browser runtime
+dependency. Fenced blocks stay fenced: a Mermaid diagram is shown as
 labelled code rather than drawn, which is honest about what a dependency-free page can do.
 
 ## Supported agents

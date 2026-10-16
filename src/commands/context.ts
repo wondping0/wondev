@@ -22,7 +22,7 @@ export async function loadContext(root: string, profile?: string): Promise<Proje
   assertSchemaCurrent(config.schema);
 
   const { project, issues } = await loadProject(root, config.name, config.sources, config.vault);
-  if (config.vault) project.contextEnabled = true;
+  if (config.vault || project.memory.some((doc) => doc.kind === 'lesson' || doc.id?.startsWith('map-module-') || doc.id?.startsWith('map-package-'))) project.contextEnabled = true;
   const selected = profile ?? config.profile;
   if (selected) {
     const settings = config.profiles?.[selected];

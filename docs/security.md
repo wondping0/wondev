@@ -116,6 +116,14 @@ rename, so an interrupted file replacement cannot leave truncated content. Coope
 writers serialize shared mutations with `.wondev/.lock`. A multi-file operation is not a
 filesystem transaction; a crash can leave a partially completed operation that needs a
 rerun. Reviewed memory proposals record their progress so application can resume safely.
+New lesson and map files are published from complete sibling temporary files using an
+exclusive hard link; an existing destination is never overwritten by creation. Map refreshes
+check generated-region baselines and preserve authored frontmatter and curated prose.
+
+Application mapping parses syntax without executing application code, compiler plugins,
+or package scripts. It skips symlinks, limits scanned input, and reports unsupported syntax
+instead of inventing relationships. A session lesson is only activated after reviewed-hash
+application and remains unverified until an explicit evidence check.
 
 An existing symlink that resolves outside the project is refused before it is read or
 written. For an allowed in-project output symlink, atomic rename replaces the link rather

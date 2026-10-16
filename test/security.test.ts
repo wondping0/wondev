@@ -3,6 +3,9 @@ import fs from 'node:fs/promises';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { runBuild } from '../src/commands/build.js';
 import { runClean } from '../src/commands/clean.js';
+import { runMap } from '../src/commands/map.js';
+import { recordSession, proposeLearning, applyMemoryProposal, proposalReviewHash } from '../src/core/sessions.js';
+import { writeFileAtomicExclusive } from '../src/util/fs.js';
 import { validateTarget } from '../src/core/config.js';
 import { parseFrontmatter } from '../src/core/frontmatter.js';
 import { extractRegion, loadManifest, removeOwned } from '../src/core/writer.js';
@@ -18,6 +21,50 @@ afterEach(async () => {
 });
 
 const build = (opts = {}) => silence(() => runBuild(root, { quiet: true, ...opts }));
+
+describe('application knowledge write boundaries', () => {
+  it('skips external source links and rejects a map output redirected outside the project', async () => {
+    const outside = await tmpRoot();
+    try {
+      await seedProject(root, ['agents']);
+      await write(outside, 'secret.ts', 'export const secret = true;');
+      await fs.symlink(outside, path.join(root, 'linked'), process.platform === 'win32' ? 'junction' : 'dir');
+      await silence(() => runMap(root, { noBuild: true }));
+      expect(await exists(root, '.wondev/memory/map')).toBe(false);
+      await write(root, 'src/app.ts', 'export {};');
+      await fs.symlink(outside, path.join(root, '.wondev/memory/map'), process.platform === 'win32' ? 'junction' : 'dir');
+      await expect(silence(() => runMap(root))).rejects.toThrow('symlink');
+      expect(await fs.readdir(outside)).toEqual(['secret.ts']);
+    } finally {
+      for (const rel of ['linked', '.wondev/memory/map']) await fs.rm(path.join(root, rel), { force: true });
+      await cleanup(outside);
+    }
+  });
+
+  it('rejects a learning destination redirected after review and leaves outside files untouched', async () => {
+    const outside = await tmpRoot();
+    try {
+      await seedProject(root, ['agents']);
+      await write(root, 'src/app.ts', 'export {};');
+      const id = await recordSession(root, { agent: 'codex', task: 'Fix app', outcome: 'Validated behavior.' });
+      const proposal = await proposeLearning(root, id, 'lesson', ['src/app.ts']);
+      await fs.symlink(outside, path.join(root, '.wondev/memory/lessons'), process.platform === 'win32' ? 'junction' : 'dir');
+      await expect(applyMemoryProposal(root, proposal.id, proposalReviewHash(proposal))).rejects.toThrow('symlink');
+      expect(await fs.readdir(outside)).toEqual([]);
+    } finally {
+      await fs.rm(path.join(root, '.wondev/memory/lessons'), { force: true });
+      await cleanup(outside);
+    }
+  });
+
+  it('publishes complete new notes exclusively without overwriting a competing writer', async () => {
+    const file = path.join(root, 'note.md');
+    await writeFileAtomicExclusive(file, 'First reviewed fact.');
+    await expect(writeFileAtomicExclusive(file, 'Concurrent fact.')).rejects.toThrow();
+    expect(await read(root, 'note.md')).toBe('First reviewed fact.');
+    expect(await fs.readdir(root)).toEqual(['note.md']);
+  });
+});
 
 /**
  * wondev runs against freshly cloned repositories and deletes files. Everything under

@@ -1,7 +1,7 @@
 # Releasing wondev
 
-Version 1.2.0 adds active vaults, evidence freshness, task context, complete skill packs,
-and reviewed session updates. See [the usage guide](knowledge.md) and [changelog](../CHANGELOG.md).
+Version 1.3.0 adds application maps, reviewed development lessons, joint memory/skill
+evaluation, and optional freshness gates. See [the usage guide](knowledge.md) and [changelog](../CHANGELOG.md).
 
 ## Verify the release candidate
 
@@ -11,13 +11,15 @@ Run from a checkout with dependencies installed:
 npm run verify
 npm run test:package
 npm run test:upgrade
+npm run test:upgrade:previous
 git diff --check
 ```
 
 `verify` checks types, builds the package, and enforces coverage thresholds. The package
 smoke test installs the real tarball into a fresh application and exercises the shipped
 CLI. The upgrade smoke test installs published 1.1.1, makes user changes, installs the
-candidate, and checks the documented upgrade and vault-conversion workflows.
+candidate, and checks the documented upgrade and vault-conversion workflows. CI and release
+also run these upgrade checks against the previous knowledge release, 1.2.0.
 
 CI runs the verification matrix on Node 20/22 across Windows, macOS, and Linux. Package
 and upgrade smoke tests run on all three platforms with Node 22. Local success does not
@@ -58,11 +60,11 @@ publishing is confirmed. This repository does not track or establish its current
 
 The repository's release mechanism is `.github/workflows/release.yml`. A pushed `v*` tag
 starts it. Use the tag for the package.json version only after the reviewed commit's CI is
-green. For the 1.2.0 release:
+green. For the 1.3.0 release:
 
 ```bash
-git tag -a v1.2.0 -m "wondev 1.2.0"
-git push origin v1.2.0
+git tag -a v1.3.0 -m "wondev 1.3.0"
+git push origin v1.3.0
 ```
 
 Pushing this tag publishes publicly to npm if verification succeeds. The workflow uses
@@ -77,14 +79,14 @@ a new version.
 After the workflow succeeds, verify the registry record:
 
 ```bash
-npm view wondev@1.2.0 version dist.integrity --json
+npm view wondev@1.3.0 version dist.integrity --json
 npm view wondev dist-tags --json
 ```
 
 ## Upgrade an application
 
 ```bash
-npm install --save-dev wondev@1.2.0
+npm install --save-dev wondev@1.3.0
 npx wondev migrate
 npx wondev upgrade
 npx wondev build

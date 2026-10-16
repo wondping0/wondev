@@ -1,5 +1,29 @@
 # Knowledge and skill management implementation
 
+## Application learning in 1.3.0
+
+- Observed JS/TS module/package maps with readable Obsidian filenames, stable IDs, import
+  and consumer links, test locations, and a curated section preserved across refreshes.
+- A retrieve → inspect → implement/test → record → review → reuse workflow in agent guidance,
+  plus a starter `learn` command that also guides evidence-backed skill improvements.
+- Session-derived lesson proposals that remain outside active memory until reviewed and
+  applied. Lessons retain scope, evidence, provenance, failed attempts, and pending work.
+- Joint memory/skill context evaluation with positive and negative expectations and actual
+  packet token budgets. Optional stale/strict freshness checks can gate affected knowledge.
+- Knowledge stays in the consuming application repository. Reusable cross-project procedures
+  use existing versioned skill packs. No model training or automatic skill rewriting.
+
+Local verification covers the complete package smoke workflow and upgrades from published
+1.1.1 and 1.2.0, including review/apply of a proposal created by 1.2.0. A pilot against a copy
+of wondev's own application sources mapped 59 JS/TS files and selected the relevant module
+for a retrieval change within a 4,000-token context budget. These checks establish mechanics
+and retrieval behavior; they do not measure improvements to a model's coding success rate.
+
+The usage guide documents parser/resolution limits and explicit review. MCP and embeddings
+remain future integrations; this release focuses on local application knowledge and reuse.
+
+## 1.2.0 release audit
+
 This records the completed October 2026 development plan for wondev 1.2.0. The final
 working-tree audit covers CLI/API behavior, documentation, compatibility, and the
 repository's verification gates. Version 1.2.0 was published to npm on 2026-10-16 and

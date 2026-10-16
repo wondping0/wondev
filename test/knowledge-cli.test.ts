@@ -20,6 +20,37 @@ async function run(...args: string[]): Promise<string> {
 }
 
 describe('knowledge CLI workflow', () => {
+  it('maps, learns, retrieves, evaluates and checks freshness through the CLI', async () => {
+    await run('init', '--vault', 'knowledge', '--targets', 'agents');
+    await write(root, 'src/auth.ts', 'export const expiry = 60;');
+    await run('map', '--dry-run', '--exclude', 'test/**');
+    expect(await exists(root, '.wondev/.map.json')).toBe(false);
+    await run('map');
+    await write(root, 'session.json', JSON.stringify({ agent: 'claude', task: 'Debug login expiry', outcome: 'Expiry belongs in the service.', failedAttempts: ['Changing UI alone failed.'] }));
+    const session = (await run('session', 'record', '--input', 'session.json')).trim();
+    const proposalText = await run('session', 'learn', session, 'auth-expiry', '--files', 'src/auth.ts');
+    const id = String(parseFrontmatter(proposalText, 'proposal').data['id']);
+    expect(await exists(root, 'knowledge/memory/lessons/auth-expiry.md')).toBe(false);
+    const proposal = await readProposal(root, id);
+    await run('session', 'review', id);
+    await run('session', 'apply', id, '--review-hash', proposalReviewHash(proposal));
+    const packet = JSON.parse(await run('context', '--task', 'Debug login expiry', '--files', 'src/auth.ts', '--json', '--budget', '8000'));
+    expect(packet.selected.some((s: { id: string }) => s.id === 'auth-expiry')).toBe(true);
+    await write(root, 'context-cases.json', JSON.stringify([{ task: 'Debug login expiry', files: ['src/auth.ts'], budget: 8000, expected: { memory: ['auth-expiry'], skills: ['debugging'] } }]));
+    expect(JSON.parse(await run('context', 'eval', 'context-cases.json'))[0].passed).toBe(true);
+    await run('check', '--freshness', 'stale', '--files', 'src/auth.ts');
+    await expect(run('check', '--freshness', 'strict', '--files', 'src/auth.ts')).rejects.toThrow('unverified');
+    await expect(run('check', '--freshness', 'anything')).rejects.toThrow('must be');
+    await expect(run('context', 'eval')).rejects.toThrow('Usage');
+    await expect(run('session', 'learn')).rejects.toThrow('Usage');
+    await write(root, 'context-cases.json', 'invalid');
+    await expect(run('context', 'eval', 'context-cases.json')).rejects.toThrow('valid JSON');
+    await write(root, 'context-cases.json', JSON.stringify([{ task: 'login', budget: 1, expected: {} }]));
+    await expect(run('context', 'eval', 'context-cases.json')).rejects.toThrow('evaluation failed');
+    await write(root, 'knowledge/memory/broken.md', '[[missing]]');
+    await expect(run('context', 'eval', 'context-cases.json')).rejects.toThrow('source validation');
+  });
+
   it('runs vault initialization, task context, verification, skill validation and evaluation', async () => {
     await run('init', '--vault', 'knowledge', '--targets', 'agents');
     const packet = JSON.parse(await run('context', '--task', 'debug failing tests', '--files', 'src/a.ts', '--budget', '8000', '--explain', '--json'));

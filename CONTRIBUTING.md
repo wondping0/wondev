@@ -7,14 +7,16 @@ npm ci
 npm run verify   # typecheck, build, then behavior tests with coverage gates
 npm run test:package   # pack, install into a temporary app, and exercise the shipped CLI
 npm run test:upgrade   # install published 1.1.1, customize it, then upgrade to this build
+npm run test:upgrade:previous   # previous knowledge release, 1.2.0
 ```
 
 CI runs the same typecheck, build, and coverage gates on Windows, macOS, and Linux with
 Node 20 and 22. Package and upgrade smoke checks run on all three platforms with Node 22.
 
 The package smoke check additionally installs the built tarball and checks the executable,
-packaged guide, vault, context, fingerprints, skills, sessions, and drift detection. It may
-use npm's cache or registry to install the package's runtime dependency. The npm transport
+packaged guide, vault, context, fingerprints, skills, sessions, and drift detection. It
+also maps application sources, applies a reviewed lesson, evaluates context, and checks
+freshness gates. It may use npm's cache or registry to install runtime dependencies. The npm transport
 integration test in `verify` uses a local HTTP registry and a real npm tarball; no package
 is published and package lifecycle scripts are disabled.
 

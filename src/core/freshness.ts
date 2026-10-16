@@ -22,6 +22,26 @@ export interface Freshness {
   verified?: string;
 }
 
+export interface FreshnessOptions {
+  freshness?: 'stale' | 'strict';
+  files?: string[];
+}
+
+/** Scope optional CI gates to active notes and changed paths, including deleted paths. */
+export async function checkFreshness(root: string, memory: MemoryDoc[], options: FreshnessOptions): Promise<Freshness[]> {
+  if (options.freshness !== undefined && !['stale', 'strict'].includes(options.freshness)) throw new WondevError('Freshness policy must be stale or strict.');
+  const active = memory.filter((doc) => !doc.status || doc.status === 'active');
+  const scoped = options.files?.length ? active.filter((doc) => doc.always || options.files!.some((file) =>
+    file.replace(/\\/g, '/').replace(/^\.\//, '') === doc.sourcePath || matchesPatterns(file, [...(doc.evidence ?? []), ...(doc.globs ?? [])]),
+  )) : active;
+  const report = await inspectFreshness(root, scoped);
+  if (options.freshness) {
+    const failed = report.filter((item) => item.status === 'stale' || options.freshness === 'strict' && item.status === 'unverified');
+    if (failed.length) throw new WondevError(`Memory freshness check failed:\n${failed.map((item) => `  ${item.id}: ${item.status} — ${item.reasons.join('; ')}`).join('\n')}`, 'Review the evidence, update incorrect notes, then use wondev memory verify <note> --against <actual check>.');
+  }
+  return report;
+}
+
 export function memoryId(doc: MemoryDoc): string { return doc.id ?? doc.slug; }
 
 /** Moving a stable-ID note does not invalidate evidence; changing its claims does. */

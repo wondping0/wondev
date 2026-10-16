@@ -35,7 +35,9 @@ describe('active Obsidian vault', () => {
     await silence(() => runUpgrade(root));
     expect(await exists(root, '.wondev/memory')).toBe(false);
     const dashboard = parse(await read(root, 'knowledge/dashboards/project.base'));
-    expect(dashboard.views).toHaveLength(4);
+    expect(dashboard.views).toHaveLength(5);
+    expect(dashboard.views.find((v: { name: string }) => v.name === 'Development lessons')).toBeDefined();
+    expect(await read(root, 'knowledge/templates/lesson.md')).toContain('Limits and exceptions');
     expect(await read(root, 'knowledge/templates/module.md')).toContain('Decisions and rejected alternatives');
   });
 

@@ -6,12 +6,13 @@ import { WondevError } from '../util/errors.js';
 import { error, info, plural, style, success, warn } from '../util/log.js';
 import { wondevVersion } from '../util/version.js';
 import { loadContext } from './context.js';
+import { checkFreshness, type FreshnessOptions } from '../core/freshness.js';
 
 /**
  * The CI entry point. Reports every problem in one pass and exits non-zero if any of them
  * would make the generated files wrong or out of date.
  */
-export async function runCheck(root: string, profile?: string): Promise<void> {
+export async function runCheck(root: string, profile?: string, options: FreshnessOptions = {}): Promise<void> {
   const ctx = await loadContext(root, profile);
 
   let errors = 0;
@@ -30,6 +31,8 @@ export async function runCheck(root: string, profile?: string): Promise<void> {
   if (errors > 0) {
     throw new WondevError(`${errors} error(s) in .wondev/.`);
   }
+
+  if (options.freshness) await checkFreshness(root, ctx.project.memory, options);
 
   const { files, owners } = await projectOutput(ctx, ctx.targets);
   const manifest = await loadManifest(root);

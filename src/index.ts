@@ -99,3 +99,9 @@ export { loadContext as loadProjectContext, type ProjectContext } from './comman
 
 export { SOURCE_SCHEMA_VERSION, MANIFEST_SCHEMA_VERSION } from './core/schema.js';
 export { wondevVersion } from './util/version.js';
+export { scanApplication, type ApplicationMap, type ImportFact, type SourceFact, type PackageFact } from './core/application-map.js';
+export { runMap, type MapOptions } from './commands/map.js';
+export { proposeLearning } from './core/sessions.js';
+export { evaluateContext, type ContextCase, type ContextExpectation, type ContextResult } from './core/context-quality.js';
+export { runContextEval } from './commands/context-eval.js';
+export { checkFreshness, type FreshnessOptions } from './core/freshness.js';

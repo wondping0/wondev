@@ -64,6 +64,9 @@ jobs:
       - name: Verify upgrade from 1.1.1
         run: npm run test:upgrade
 
+      - name: Verify upgrade from 1.2.0
+        run: npm run test:upgrade:previous
+
       - name: Confirm the tag matches package.json
         run: |
           set -euo pipefail

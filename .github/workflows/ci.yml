@@ -75,3 +75,6 @@ jobs:
       # same-version reinstall. Registry failures must fail, not silently skip the test.
       - name: Upgrade an existing project to this build
         run: npm run test:upgrade
+
+      - name: Upgrade from the previous knowledge release
+        run: npm run test:upgrade:previous
