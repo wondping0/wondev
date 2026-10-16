@@ -11,7 +11,7 @@ a patch, because it makes `wondev check` fail in every project that upgrades.
 
 ## [Unreleased]
 
-## [1.2.0] - 2026-10-15
+## [1.2.0] - 2026-10-16
 
 ### Added
 

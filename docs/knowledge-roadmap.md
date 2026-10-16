@@ -2,7 +2,8 @@
 
 This records the completed October 2026 development plan for wondev 1.2.0. The final
 working-tree audit covers CLI/API behavior, documentation, compatibility, and the
-repository's verification gates. The package has not been published.
+repository's verification gates. Version 1.2.0 was published to npm on 2026-10-16 and
+verified through a fresh registry installation.
 
 ## Active vault and project knowledge
 
@@ -96,3 +97,18 @@ before publishing; release preparation is recorded below.
 Local verification is recorded above; hosted matrix results are attached to
 [PR #6](https://github.com/wondping0/wondev/pull/6).
 See [the release procedure](releasing.md) for the remaining external release steps.
+
+## Published release verification
+
+- [PR #6](https://github.com/wondping0/wondev/pull/6) was merged to `main` as
+  `dbb7ff3ef149318fc48f72b40f6564df340e0237`; tag `v1.2.0` points to that commit.
+- All 12 jobs in the [main CI run](https://github.com/wondping0/wondev/actions/runs/38838920757)
+  passed across Windows, macOS, Linux, and Node 20/22.
+- The [release workflow](https://github.com/wondping0/wondev/actions/runs/38839082505)
+  passed verification and both smoke checks, then published through GitHub OIDC.
+- npm reports [`wondev@1.2.0`](https://www.npmjs.com/package/wondev/v/1.2.0) as `latest`,
+  with a signed provenance attestation and integrity
+  `sha512-aRmpxUVss9Oml9cpgXzH48+9IGgtYaIXlwRHAfFI6a/up/AK+oL5kEHXJdIsBh1yNh+XcxK3V/B2iiayVTI+5g==`.
+- A fresh installation from **npm**, rather than the local tarball, passed the installed
+  executable, active vault, context selection, evidence verification, complete skill
+  resources, session proposal/apply, frozen sync, and drift checks on 2026-10-16.
