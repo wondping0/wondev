@@ -111,7 +111,7 @@ describe('wondev adopt', () => {
     expect(await exists(root, '.wondev/skills/graphify/references/query.md')).toBe(true);
     expect(await exists(root, '.wondev/commands/review.md')).toBe(true);
     expect(await exists(root, '.wondev/agents/auditor.md')).toBe(true);
-    // Not markdown, so it cannot be an attachment.
+    // Hidden bookkeeping is excluded from portable skill resources.
     expect(await exists(root, '.wondev/skills/graphify/.version')).toBe(false);
   });
 

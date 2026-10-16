@@ -35,6 +35,16 @@ export interface RegistryEntry {
   };
 }
 
+/** Compiler capabilities, independent of what a particular host chooses to execute. */
+export function targetCapabilities(target: Target): { skills: string; resources: string; scoping: string; agents: string } {
+  switch (target.engine) {
+    case 'claude': return { skills: 'native directories', resources: 'verbatim copies', scoping: target.rules ? 'native path rules' : 'documented paths', agents: target.agents ? 'native files' : 'references' };
+    case 'rule-dir': return { skills: 'rule files', resources: 'source references', scoping: target.frontmatter?.globs ? 'native globs' : 'documented paths', agents: 'source references' };
+    case 'single-file': return { skills: 'source references or inline', resources: 'source references', scoping: 'documented paths', agents: 'source references' };
+    case 'html': return { skills: 'human guide', resources: 'listed paths', scoping: 'none', agents: 'human guide' };
+  }
+}
+
 /**
  * Built-in targets.
  *

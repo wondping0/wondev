@@ -41,12 +41,23 @@ export function isAtomicWriteTemp(name: string): boolean {
   return /\.wondev-\d+-[0-9a-f]+\.tmp$/.test(name);
 }
 
-export async function writeFileAtomic(target: string, content: string): Promise<void> {
+export async function writeFileAtomic(target: string, content: string | Uint8Array): Promise<void> {
   await ensureDir(path.dirname(target));
   const tmp = `${target}.wondev-${process.pid}-${crypto.randomBytes(4).toString('hex')}.tmp`;
   try {
     await fs.writeFile(tmp, content, 'utf8');
-    await fs.rename(tmp, target);
+    for (let attempt = 0; ; attempt++) {
+      try {
+        await fs.rename(tmp, target);
+        break;
+      } catch (err) {
+        // On Windows an editor, indexer, or reader can briefly prevent replacement.
+        // Retry the atomic rename without deleting the destination or rewriting bytes.
+        const code = (err as NodeJS.ErrnoException).code;
+        if (attempt >= 5 || !['EPERM', 'EACCES', 'EBUSY'].includes(code ?? '')) throw err;
+        await new Promise((resolve) => setTimeout(resolve, 20 * (attempt + 1)));
+      }
+    }
   } catch (err) {
     await fs.rm(tmp, { force: true }).catch(() => {});
     throw err;
@@ -97,8 +108,8 @@ export async function listFilesRecursive(dir: string): Promise<string[]> {
   return out.sort();
 }
 
-export function sha256(content: string): string {
-  return crypto.createHash('sha256').update(content, 'utf8').digest('hex');
+export function sha256(content: string | Uint8Array): string {
+  return crypto.createHash('sha256').update(content).digest('hex');
 }
 
 /**

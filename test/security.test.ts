@@ -97,6 +97,19 @@ describe('custom target paths cannot escape the project', () => {
 });
 
 describe('symlinks cannot redirect writes out of the project', () => {
+  it('checks a leaf symlink even after caching its parent directory', async () => {
+    const outside = await tmpRoot();
+    try {
+      await write(outside, 'secret.txt', 'private');
+      const guard = createRootGuard(root);
+      await guard('ordinary.md');
+      try { await fs.symlink(path.join(outside, 'secret.txt'), path.join(root, 'linked.md'), 'file'); }
+      catch (err) { if ((err as NodeJS.ErrnoException).code === 'EPERM') return; throw err; }
+      await expect(guard('linked.md')).rejects.toThrow('symlink');
+      expect(await read(outside, 'secret.txt')).toBe('private');
+    } finally { await cleanup(outside); }
+  });
+
   // Regression: `isInsideRoot` compares lexically, so a repository shipping
   // `.claude -> ~/.ssh` passed the check while every write landed outside.
   it('rejects a path whose directory symlinks outside the root', async () => {

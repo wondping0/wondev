@@ -1,7 +1,7 @@
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { WONDEV_DIR, wondevDir } from './config.js';
+import { WONDEV_DIR, sourceFile, type SourceConfig } from './config.js';
 import { listFilesRecursive, normalizeEol, readFileIfExists, sha256, writeFileAtomic } from '../util/fs.js';
 import { absFrom } from '../util/paths.js';
 
@@ -65,17 +65,22 @@ export async function saveTemplateManifest(
 
 /** Every shipped template file, as POSIX paths relative to the templates root. */
 export async function listTemplateFiles(templatesDir: string): Promise<string[]> {
-  return listFilesRecursive(templatesDir);
+  return (await listFilesRecursive(templatesDir)).map((rel) => rel === 'gitignore' ? '.gitignore' : rel).sort();
+}
+
+/** npm omits or renames .gitignore; keep its packaged name distinct from its authored path. */
+export function templateSourceFile(templatesDir: string, rel: string): string {
+  return path.join(templatesDir, rel === '.gitignore' ? 'gitignore' : rel);
 }
 
 export async function hashTemplateFile(templatesDir: string, rel: string): Promise<string> {
-  const raw = await fs.readFile(path.join(templatesDir, rel), 'utf8');
+  const raw = await fs.readFile(templateSourceFile(templatesDir, rel), 'utf8');
   return sha256(normalizeEol(raw));
 }
 
 /** Hash of the user's copy, or null when they deleted it. */
-export async function hashProjectFile(root: string, rel: string): Promise<string | null> {
-  const raw = await readFileIfExists(path.join(wondevDir(root), rel));
+export async function hashProjectFile(root: string, rel: string, sources?: SourceConfig): Promise<string | null> {
+  const raw = await readFileIfExists(path.join(root, sourceFile(rel, sources)));
   return raw === null ? null : sha256(normalizeEol(raw));
 }
 

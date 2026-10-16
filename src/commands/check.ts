@@ -1,4 +1,4 @@
-import { renderAll } from '../core/render/index.js';
+import { projectOutput } from './output.js';
 import { alwaysOnTokens, docTokens } from '../core/render/index-doc.js';
 import { formatTokens } from '../util/tokens.js';
 import { loadManifest, planWrites } from '../core/writer.js';
@@ -11,8 +11,8 @@ import { loadContext } from './context.js';
  * The CI entry point. Reports every problem in one pass and exits non-zero if any of them
  * would make the generated files wrong or out of date.
  */
-export async function runCheck(root: string): Promise<void> {
-  const ctx = await loadContext(root);
+export async function runCheck(root: string, profile?: string): Promise<void> {
+  const ctx = await loadContext(root, profile);
 
   let errors = 0;
   let warnings = 0;
@@ -31,7 +31,7 @@ export async function runCheck(root: string): Promise<void> {
     throw new WondevError(`${errors} error(s) in .wondev/.`);
   }
 
-  const { files, owners } = renderAll(ctx.project, ctx.targets, ctx.config.index);
+  const { files, owners } = await projectOutput(ctx, ctx.targets);
   const manifest = await loadManifest(root);
   const plan = await planWrites(root, files, owners, manifest);
 
@@ -79,7 +79,7 @@ export async function runCheck(root: string): Promise<void> {
     const used = alwaysOnTokens(ctx.project);
     if (used > budget) {
       const largest = ctx.project.memory
-        .filter((d) => d.always)
+        .filter((d) => d.always && (!d.status || d.status === 'active'))
         .sort((a, b) => docTokens(b) - docTokens(a))
         .slice(0, 3)
         .map((d) => `  ${d.slug} — ≈${formatTokens(docTokens(d))}`);

@@ -1,6 +1,7 @@
 import fsSync from 'node:fs';
+import fs from 'node:fs/promises';
 import path from 'node:path';
-import { wondevDir } from '../core/config.js';
+import { loadConfig, sourceDirectory, wondevDir, type WondevConfig } from '../core/config.js';
 import { isWondevError } from '../util/errors.js';
 import { isAtomicWriteTemp } from '../util/fs.js';
 import { error, info, style } from '../util/log.js';
@@ -21,13 +22,14 @@ const MANIFEST_BASENAME = '.manifest.json';
 export async function runWatch(root: string, options: BuildOptions = {}): Promise<void> {
   const base = wondevDir(root);
 
-  await safeBuild(root, options);
-  info(style.dim(`Watching ${path.relative(root, base) || base} for changes. Ctrl+C to stop.`));
-
-  const watchers: fsSync.FSWatcher[] = [];
+  const watchers = new Map<string, fsSync.FSWatcher>();
+  const identities = new Map<string, string>();
+  const nonRecursive = new Set<string>();
+  let sources: string[] = [];
   let timer: NodeJS.Timeout | undefined;
   let building = false;
   let queued = false;
+  let stopped = false;
 
   /**
    * Ignore wondev's own bookkeeping.
@@ -44,12 +46,13 @@ export async function runWatch(root: string, options: BuildOptions = {}): Promis
     const base = path.basename(typeof filename === 'string' ? filename : filename.toString());
     // The temp file matters as much as the manifest: writes are atomic, so each manifest
     // save also creates and renames `.manifest.json.wondev-<pid>-<hex>.tmp` beside it.
-    return base === MANIFEST_BASENAME || isAtomicWriteTemp(base);
+    return base === MANIFEST_BASENAME || base.startsWith('.lock') || isAtomicWriteTemp(base);
   };
 
   // Both parameters are optional so the queued-rebuild path below can call this directly,
   // where there is no originating filesystem event to inspect.
   const trigger = (_event?: string, filename: string | Buffer | null = null): void => {
+    if (stopped) return;
     if (isSelfInflicted(filename)) return;
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => {
@@ -65,6 +68,7 @@ export async function runWatch(root: string, options: BuildOptions = {}): Promis
     building = true;
     try {
       await safeBuild(root, options);
+      await configureWatchers();
     } finally {
       building = false;
       if (queued) {
@@ -74,28 +78,87 @@ export async function runWatch(root: string, options: BuildOptions = {}): Promis
     }
   };
 
-  try {
-    watchers.push(fsSync.watch(base, { recursive: true }, trigger));
-  } catch {
-    watchers.push(fsSync.watch(base, trigger));
-    for (const sub of ['memory', 'skills', 'commands']) {
-      const dir = path.join(base, sub);
-      try {
-        watchers.push(fsSync.watch(dir, { recursive: true }, trigger));
-      } catch {
-        try {
-          watchers.push(fsSync.watch(dir, trigger));
-        } catch {
-          // Subdirectory may not exist yet; the parent watcher will catch its creation.
+  const configureWatchers = async (): Promise<void> => {
+    if (stopped) return;
+    let config: WondevConfig | undefined;
+    try { config = await loadConfig(root); } catch {
+      // Keep working watchers while YAML is edited. On startup still observe the config
+      // location, otherwise the user cannot recover from an initially malformed file.
+      if (watchers.size) return;
+    }
+    sources = ['memory', 'skills', 'commands', 'agents'].map((kind) =>
+      sourceDirectory(kind as 'memory' | 'skills' | 'commands' | 'agents', config?.sources));
+    const watched = new Set<string>();
+    const relevant = (rel: string): boolean => rel === '.wondev/wondev.yaml' || sources.some((source) =>
+      rel === source || rel.startsWith(`${source}/`) || source.startsWith(`${rel}/`));
+    const watch = async (dir: string): Promise<void> => {
+      if (watched.has(dir)) return;
+      watched.add(dir);
+      const identity = await fs.stat(dir).then((stat) => `${stat.dev}:${stat.ino}`).catch(() => undefined);
+      if (identity === undefined) return;
+      // A replaced directory needs a new handle even though its path is unchanged.
+      if (watchers.has(dir) && identities.get(dir) !== identity) {
+        watchers.get(dir)!.close();
+        watchers.delete(dir);
+        nonRecursive.delete(dir);
+      }
+      // Keep existing subscriptions alive, especially the config watcher. Replacing all
+      // handles after every build can lose an edit while Windows swaps subscriptions.
+      if (!watchers.has(dir)) {
+        const listener = (event: string, name: string | Buffer | null): void => {
+          const rel = path.relative(root, path.join(dir, name?.toString() ?? '')).replace(/\\/g, '/');
+          if (!name || relevant(rel)) trigger(event, name);
+        };
+        try { watchers.set(dir, fsSync.watch(dir, { recursive: true }, listener)); }
+        catch {
+          try {
+            watchers.set(dir, fsSync.watch(dir, listener));
+            nonRecursive.add(dir);
+          } catch { return; /* A parent watcher detects newly created sources. */ }
         }
+        identities.set(dir, identity);
+      }
+      if (nonRecursive.has(dir)) {
+        try {
+          for (const entry of await fs.readdir(dir, { withFileTypes: true })) {
+            const child = path.join(dir, entry.name);
+            const rel = path.relative(root, child).replace(/\\/g, '/');
+            if (entry.isDirectory() && relevant(rel)) await watch(child);
+          }
+        } catch { /* A directory can disappear while its parent reports a rename. */ }
+      }
+    };
+    await watch(base);
+    for (const source of sources) {
+      let dir = path.join(root, source);
+      while (!fsSync.existsSync(dir) && dir !== root) dir = path.dirname(dir);
+      await watch(dir);
+    }
+    for (const [dir, watcher] of watchers) {
+      if (stopped || !watched.has(dir)) {
+        watcher.close();
+        watchers.delete(dir);
+        identities.delete(dir);
+        nonRecursive.delete(dir);
       }
     }
-  }
+  };
+  await configureWatchers();
+  // Readiness means watchers are installed. Building after subscribing closes the gap
+  // where an edit between the initial build and subscription could otherwise be lost.
+  await rebuild();
+  info(style.dim('Watching configured sources and .wondev/wondev.yaml. Ctrl+C to stop.'));
 
   await new Promise<void>((resolve) => {
     const stop = (): void => {
+      stopped = true;
       if (timer) clearTimeout(timer);
-      for (const w of watchers) w.close();
+      for (const watcher of watchers.values()) watcher.close();
+      watchers.clear();
+      identities.clear();
+      nonRecursive.clear();
+      process.removeListener('SIGINT', stop);
+      process.removeListener('SIGTERM', stop);
       resolve();
     };
     process.once('SIGINT', stop);

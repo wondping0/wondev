@@ -1,3 +1,4 @@
+import path from 'node:path';
 import type { ArtifactSection, Command, MemoryDoc, Project, Skill } from '../model.js';
 import { ALL_SECTIONS } from '../model.js';
 import { estimateTokens, formatTokens } from '../../util/tokens.js';
@@ -105,7 +106,7 @@ export function skillSection(skill: Skill): string {
   // The paths are real, so an agent that wants the material can read it.
   if (skill.attachments.length > 0) {
     const list = skill.attachments
-      .map((a) => `- \`.wondev/skills/${skill.name}/${a.relPath}\``)
+      .map((a) => `- \`${path.posix.dirname(skill.sourcePath)}/${a.relPath}\``)
       .join('\n');
     parts.push(`**Reference material** — read on demand, not included here:\n${list}`);
   }

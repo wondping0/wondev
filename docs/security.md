@@ -2,25 +2,31 @@
 
 ## Threat model
 
-wondev reads `.wondev/`, writes generated files across the repository, and **deletes** files
-it previously wrote. It is routinely run against freshly cloned repositories.
+wondev reads configured source directories and `.wondev/`, writes generated files across
+the repository, and **deletes** files it previously wrote. It is routinely run against
+freshly cloned repositories.
 
-That makes the trust boundary sharp: **everything under `.wondev/` is untrusted input**,
-including `.wondev/.manifest.json`, which wondev wrote itself. A repository is data supplied
-by whoever authored it, and `.wondev/` is committed like any other directory.
+That makes the trust boundary sharp: **configured sources and everything under `.wondev/`
+are untrusted input**, including `.wondev/.manifest.json`, which wondev wrote itself. A
+repository is data supplied by whoever authored it, and these files are committed like
+any other directory. Downloaded skill packs are also untrusted content.
 
 The attacker is assumed to control the full contents of a repository the user clones. They
 do not control the user's wondev installation or command-line arguments.
 
 ## What wondev does not do
 
-Verified by inspection of `src/`, and asserted in `test/security.test.ts`:
-
-- **No process execution.** No `child_process`, no `exec`, no `spawn`, no shell anywhere.
+- **No source execution during builds.** Skill scripts are copied as resources, never run.
+  Explicit npm skill-pack install/update/sync commands invoke the installed npm CLI using
+  an argument array without a shell. Downloads use an isolated temporary directory with
+  lifecycle scripts, binary links, audit, and funding requests disabled. They do not alter
+  the project's package.json. The npm transport integration test includes a failing
+  postinstall script to verify that package lifecycle scripts are not executed.
 - **No dynamic evaluation.** No `eval`, no `new Function`.
-- **No network access**, except `wondev doctor --online`, which requests one npm registry
-  URL and only when that flag is passed. A test asserts `fetch` is never called otherwise.
-- **No credentials, no telemetry, no postinstall script.**
+- **No network access during builds or local-pack operations.** Network access is limited
+  to explicit npm pack operations and `wondev doctor --online`. npm uses the user's existing
+  registry configuration, which can include credentials for private registries.
+- **No credential collection, telemetry, or wondev postinstall script.**
 
 ## Boundaries that are enforced
 
@@ -31,8 +37,9 @@ Two independent checks, because each defeats a different attack:
 1. **Lexical** — `isInsideRoot` rejects absolute paths, drive-qualified Windows paths, and
    anything normalising to `../`. Applied to every configured target path and every
    generated output path.
-2. **Resolved** — `createRootGuard` resolves each output directory through symlinks and
-   confirms it still lands inside the project.
+2. **Resolved** — `createRootGuard` resolves parent directories and existing leaf symlinks
+   and confirms they still land inside the project. Sources, state, and generated files
+   are checked at their read/write boundaries.
 
 The second exists because the first is not sufficient. A repository can contain a directory
 symlink, and git preserves symlinks on clone. A repository shipping `.claude -> ~/.ssh`
@@ -42,8 +49,7 @@ attacker-controlled memory content, that is a write-what-where primitive against
 
 ### A command argument cannot direct deletion outward
 
-`wondev remove <type> <name>` builds a path from `name` and deletes it, which makes it the
-only place besides the manifest where untrusted text becomes `fs.rm`. A name containing `..`
+`wondev remove <type> <name>` builds a path from `name` and deletes it. A name containing `..`
 or an absolute path is refused before anything is resolved, and the resolved path is checked
 again against the directory it came from before the delete.
 
@@ -83,8 +89,9 @@ make cloning a repository and running `wondev clean` delete arbitrary files.
 
 `loadManifest` rejects the whole file if any entry escapes the project, rather than quietly
 dropping the bad entry: wondev never writes such a path, so its presence means tampering and
-deserves a loud failure. `removeOwned` — the only function in wondev that deletes — repeats
-both checks regardless of caller.
+deserves a loud failure. `removeOwned`, which deletes generated output, repeats both checks
+regardless of caller. Skill-pack updates only remove individually owned, unchanged files
+after validating their paths and checking their installation baselines.
 
 ### Formats from the future are refused, not guessed
 
@@ -104,25 +111,28 @@ files it does not understand.
 
 ## Integrity of writes
 
-Every write goes to a uniquely named sibling temp file and is then renamed into place. An
-interrupted build cannot leave a truncated file, and concurrent writes cannot interleave.
+Source updates, generated files, and state records use sibling temporary files followed by
+rename, so an interrupted file replacement cannot leave truncated content. Cooperating
+writers serialize shared mutations with `.wondev/.lock`. A multi-file operation is not a
+filesystem transaction; a crash can leave a partially completed operation that needs a
+rerun. Reviewed memory proposals record their progress so application can resume safely.
 
-When an output path is an existing symlink, the rename **replaces the link** rather than
-writing through it, so the link target is not modified.
+An existing symlink that resolves outside the project is refused before it is read or
+written. For an allowed in-project output symlink, atomic rename replaces the link rather
+than writing through it.
 
 ## Deliberate residual risks
 
 - **Generated content is trusted by the agent that reads it.** wondev compiles whatever
-  `.wondev/` says into files AI agents treat as instructions. A hostile repository can
+  configured sources say into files AI agents treat as instructions. A hostile repository can
   therefore instruct an agent, exactly as a hostile `CLAUDE.md` or `AGENTS.md` could without
-  wondev. wondev neither adds nor removes this risk; review `.wondev/` in an unfamiliar
-  repository as you would review any agent instructions.
-- **Region mode reads an existing file before rewriting it.** If a user has replaced
-  `CLAUDE.md` with a symlink to a sensitive file, its contents are read and written back
-  into the repository. No data leaves the machine, and the rename does not modify the link
-  target, but the content becomes visible in the working tree.
+  wondev. Review source notes and skill packs as you would review any agent instructions.
+- **External editors do not participate in the project lock.** Expected-hash checks detect
+  observed changes, but cannot make simultaneous manual edits or hostile filesystem swaps
+  atomic. Path guards are not an operating-system sandbox against another process actively
+  replacing directories during an operation.
 
 ## Reporting
 
-Open a GitHub issue for anything found here. There is no separate embargo process for a tool
-of this size; please do include a reproduction.
+Follow the private reporting process in [SECURITY.md](../SECURITY.md), and include a
+reproduction.

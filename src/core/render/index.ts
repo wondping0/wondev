@@ -18,6 +18,7 @@ export function renderTarget(
   named: NamedTarget,
   flattened?: string,
 ): RenderedFile[] {
+  project = agentProject(project);
   const { target } = named;
   let files: RenderedFile[];
 
@@ -59,6 +60,16 @@ export interface RenderResult {
 /** The owner name recorded for the memory index, which belongs to no target. */
 export const INDEX_OWNER = 'index';
 
+function agentProject(project: Project): Project {
+  const memory = project.memory.filter((doc) => !doc.status || doc.status === 'active');
+  if (project.contextEnabled) memory.unshift({
+    slug: 'wondev-context', title: 'Selecting project context', always: true, extra: {},
+    sourcePath: '.wondev/wondev.yaml',
+    body: 'Before a task, run `npx --no-install wondev context --task "task description" --files path/to/file --budget 4000 --explain`. Omit --files when paths are unknown. Read the returned memory and skills. Check stale or unverified claims against the code. After changing architecture or behavior, record decisions and evidence in a wondev session and propose updates to the relevant memory. Use `wondev memory stale` to find notes requiring review.\n',
+  });
+  return { ...project, memory };
+}
+
 /** Render every enabled target, and fail loudly if two targets claim the same file. */
 export function renderAll(
   project: Project,
@@ -71,7 +82,7 @@ export function renderAll(
   // enables several of them, so flattening once and sharing the result removes work that
   // scales with both project size and target count.
   let flattened: string | undefined;
-  const flattenOnce = (): string => (flattened ??= flattenProject(project));
+  const flattenOnce = (): string => (flattened ??= flattenProject(agentProject(project)));
 
   for (const named of targets) {
     const memo = named.target.engine === 'single-file' ? flattenOnce() : undefined;

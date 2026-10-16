@@ -1,6 +1,7 @@
 import path from 'node:path';
 import fs from 'node:fs/promises';
-import { wondevDir } from '../core/config.js';
+import { loadConfig, sourceFile, type SourceConfig } from '../core/config.js';
+import { createRootGuard } from '../util/paths.js';
 import {
   hashProjectFile,
   hashTemplateFile,
@@ -8,12 +9,14 @@ import {
   loadTemplateManifest,
   saveTemplateManifest,
   templatesDir,
+  templateSourceFile,
   type TemplateManifest,
 } from '../core/templates.js';
 import { WondevError } from '../util/errors.js';
 import { normalizeEol, pathExists, writeFileAtomic } from '../util/fs.js';
 import { info, step, style, success, warn } from '../util/log.js';
 import { wondevVersion } from '../util/version.js';
+import { withProjectLock } from '../util/lock.js';
 
 export interface UpgradeOptions {
   dryRun?: boolean;
@@ -50,6 +53,12 @@ interface Decision {
  * left in a file an agent reads as instructions are worse still.
  */
 export async function runUpgrade(root: string, options: UpgradeOptions = {}): Promise<void> {
+  if (options.dryRun) return upgradeLocked(root, options);
+  await loadConfig(root);
+  return withProjectLock(root, () => upgradeLocked(root, options));
+}
+
+async function upgradeLocked(root: string, options: UpgradeOptions): Promise<void> {
   const manifest = await loadTemplateManifest(root);
   if (!manifest) {
     throw new WondevError(
@@ -75,9 +84,12 @@ export async function runUpgrade(root: string, options: UpgradeOptions = {}): Pr
 
   const next: TemplateManifest = { version: running, files: { ...manifest.files } };
   const decisions: Decision[] = [];
+  const config = await loadConfig(root);
+  const guard = createRootGuard(root);
 
   for (const rel of filtered) {
-    const decision = await decide(root, templates, rel, manifest, options);
+    await guard(sourceFile(rel, config.sources));
+    const decision = await decide(root, templates, rel, manifest, options, config.sources);
     decisions.push({ rel, outcome: decision.outcome });
 
     if (options.dryRun) continue;
@@ -111,12 +123,13 @@ async function decide(
   rel: string,
   manifest: TemplateManifest,
   options: UpgradeOptions,
+  sources?: SourceConfig,
 ): Promise<Resolution> {
   const shippedHash = await hashTemplateFile(templates, rel);
-  const shippedContent = normalizeEol(await fs.readFile(path.join(templates, rel), 'utf8'));
-  const target = path.join(wondevDir(root), rel);
+  const shippedContent = normalizeEol(await fs.readFile(templateSourceFile(templates, rel), 'utf8'));
+  const target = path.join(root, sourceFile(rel, sources));
   const record = manifest.files[rel];
-  const userHash = await hashProjectFile(root, rel);
+  const userHash = await hashProjectFile(root, rel, sources);
 
   // New template in this release.
   if (!record) {

@@ -11,8 +11,8 @@ import { loadContext } from './context.js';
  * column is included because the whole design turns on it: which documents are always-on,
  * and which procedures are carried rather than referenced.
  */
-export async function runList(root: string): Promise<void> {
-  const ctx = await loadContext(root);
+export async function runList(root: string, profile?: string): Promise<void> {
+  const ctx = await loadContext(root, profile);
   const { project } = ctx;
 
   const line = (name: string, cost: string, note: string): void => {

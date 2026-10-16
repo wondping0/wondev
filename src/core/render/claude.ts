@@ -23,6 +23,7 @@ export function renderClaude(project: Project, target: ClaudeTarget): RenderedFi
   const skillsDir = target.skills.replace(/\/+$/, '');
   for (const skill of want.has('skills') ? project.skills : []) {
     const data: Record<string, unknown> = {
+      ...skill.frontmatter,
       name: skill.name,
       description: skill.description,
     };
@@ -39,6 +40,9 @@ export function renderClaude(project: Project, target: ClaudeTarget): RenderedFi
         path: `${skillsDir}/${skill.name}/${att.relPath}`,
         content: att.content,
         mode: 'whole',
+        raw: true,
+        ...(att.encoding ? { encoding: att.encoding } : {}),
+        ...(att.executable ? { executable: true } : {}),
       });
     }
   }

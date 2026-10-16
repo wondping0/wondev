@@ -21,6 +21,9 @@
  */
 export type {
   Attachment,
+  Agent,
+  Skill,
+  HtmlTarget,
   Command,
   ClaudeTarget,
   MemoryDoc,
@@ -40,6 +43,10 @@ export {
   type IndexColumn,
   type IndexConfig,
   type WondevConfig,
+  type SourceConfig,
+  type SourceKind,
+  type SkillProfile,
+  sourceDirectory,
 } from './core/config.js';
 export { loadProject, hasErrors, type Issue, type LoadResult } from './core/source.js';
 export {
@@ -74,6 +81,20 @@ export { runAdopt } from './commands/adopt.js';
 export { runRemove } from './commands/remove.js';
 export { runList } from './commands/list.js';
 export { runWatch } from './commands/watch.js';
+export { runVault } from './commands/vault.js';
+export { noteLinks, resolveNote, relatedNotes } from './core/links.js';
+export { selectContext, formatContext, type ContextOptions, type ContextPacket, type ContextSelection } from './core/retrieval.js';
+export { inspectFreshness, type Freshness } from './core/freshness.js';
+export { runContext } from './commands/select-context.js';
+export { runMemoryVerify, runMemoryStale } from './commands/memory.js';
+export { validateSkill, evaluateTriggers, type TriggerCase, type TriggerResult } from './core/skill-quality.js';
+export { targetCapabilities } from './core/registry.js';
+export { runSkillValidate, runSkillEval } from './commands/skills.js';
+export { recordSession, proposeMemory, readProposal, proposalReviewHash, applyMemoryProposal, rejectMemoryProposal, type SessionInput, type MemoryProposal } from './core/sessions.js';
+export { runSession } from './commands/session.js';
+export { installPack, updatePack, syncPacks, loadPackLock, type PackResult, type PackChange, type PackLock, type LockedPack } from './core/packs.js';
+export { runPacks } from './commands/packs.js';
+export { loadContext as loadProjectContext, type ProjectContext } from './commands/context.js';
 
 
 export { SOURCE_SCHEMA_VERSION, MANIFEST_SCHEMA_VERSION } from './core/schema.js';
