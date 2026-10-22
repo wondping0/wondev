@@ -38,12 +38,18 @@ ${style.bold('Commands')}
   targets                  List known targets and what reads them
   context                  Select memory and skills for a task within a token budget
   context eval <cases>     Test memory + skill retrieval under real token budgets
-  map                      Refresh observed JS/TS application structure in memory
+  map                      Map configured services and report language/relationship coverage
   memory verify <note>     Record evidence after checking a note against the code
   memory stale             Report changed, missing, or unverified evidence
   skills validate          Validate portable skill metadata
   skills eval <cases.json> Test positive and negative skill trigger cases
-  skills install <source> Install a versioned local: or npm: skill pack
+  skills install <source> Add bundled:<name|all>, local: or npm: skill packs
+  plugins catalog / info  Browse curated skills and MCPs, sources, access and prerequisites
+  plugins pin <id>        Record an exact MCP version, disabled until explicitly enabled
+  plugins enable / disable <id>  Control skills or the project MCP export selection
+  plugins check --online  Check pinned integrity and newer registry versions without updates
+  plugins export --agent <host>  Print a reviewable Codex/Claude/generic MCP configuration
+  vault reconcile <dir>   Preview legacy memory copies, conflicts, titles and wikilinks
   skills update <name>    Preview or apply upstream changes while preserving edits
   skills sync              Restore pack files from locked versions and checksums
   session <action>         Record work; propose, review, apply, or reject memory updates
@@ -64,7 +70,11 @@ ${style.bold('Options')}
   --verbose                targets: show compiler capabilities and path verification dates
   --vault <dir>            init: create active vault; adopt: import existing markdown
   --map <from=to>          adopt: rename a frontmatter key (repeatable)
-  --online                 doctor: also ask npm whether a newer wondev exists
+  --online                 doctor/plugins check: query the official npm registry
+  --git                    check/doctor: diagnose Git distribution of managed output
+  --apply                  vault reconcile: apply a plan matching --review-hash
+  --resolutions <file>     vault reconcile: JSON destination-to-source/vault choices
+  --plugin-version <exact> plugins pin: verify and select a specific npm version
   --no-color               Disable coloured output
   --task <text>            context: task to select guidance for
   --files <a,b>            context/check: changed paths; session learn: evidence paths/globs
@@ -213,6 +223,10 @@ export async function main(argv: string[]): Promise<number> {
       'no-new': { type: 'boolean' },
       new: { type: 'boolean' },
       online: { type: 'boolean' },
+      git: { type: 'boolean' },
+      apply: { type: 'boolean' },
+      resolutions: { type: 'string' },
+      'plugin-version': { type: 'string' },
       vault: { type: 'string' },
       map: { type: 'string', multiple: true },
       verbose: { type: 'boolean' },
@@ -248,6 +262,11 @@ export async function main(argv: string[]): Promise<number> {
   const root = path.resolve(values.cwd ?? process.cwd());
 
   switch (command) {
+    case 'plugins': {
+      const { runPlugins } = await import('./commands/plugins.js');
+      await runPlugins(root, positionals[1] ?? 'catalog', positionals[2], { json: values.json, online: values.online, agent: values.agent, version: values['plugin-version'], dryRun: values['dry-run'], noBuild: values['no-build'] });
+      return process.exitCode === 1 ? 1 : 0;
+    }
     case 'agent': {
       const { runAgentCheck, runSelection } = await import('./commands/agent.js');
       if (positionals[1] === 'check') await runAgentCheck(root, { agent: values.agent, profile: values.profile, json: values.json });
@@ -262,7 +281,7 @@ export async function main(argv: string[]): Promise<number> {
     }
     case 'map': {
       const { runMap } = await import('./commands/map.js');
-      await runMap(root, { dryRun: values['dry-run'] === true, noBuild: values['no-build'] === true, exclude: values.exclude });
+      await runMap(root, { dryRun: values['dry-run'] === true, noBuild: values['no-build'] === true, exclude: values.exclude, json: values.json });
       return 0;
     }
     case 'context': {
@@ -295,6 +314,11 @@ export async function main(argv: string[]): Promise<number> {
         return 0;
       }
       if (['install', 'update', 'sync'].includes(positionals[1] ?? '')) {
+        if (action === 'install' && positionals[2]?.startsWith('bundled:')) {
+          const { runBundledInstall } = await import('./commands/bundled-skills.js');
+          await runBundledInstall(root, positionals[2].slice(8), { dryRun: values['dry-run'], noBuild: values['no-build'] });
+          return 0;
+        }
         const { runPacks } = await import('./commands/packs.js');
         await runPacks(root, positionals[1]!, positionals[2], { dryRun: values['dry-run'] === true, source: values.source, noBuild: values['no-build'] === true });
         return 0;
@@ -325,6 +349,12 @@ export async function main(argv: string[]): Promise<number> {
     }
 
     case 'vault': {
+      if (positionals[1] === 'reconcile') {
+        if (!positionals[2]) throw new WondevError('Usage: wondev vault reconcile <existing-vault> [--json] [--resolutions <file>] [--apply --review-hash <hash>]');
+        const { runVaultReconcile } = await import('./commands/vault-reconcile.js');
+        await runVaultReconcile(root, positionals[2], { apply: values.apply, dryRun: values['dry-run'], json: values.json, resolutions: values.resolutions, reviewHash: values['review-hash'] });
+        return 0;
+      }
       const { runVault } = await import('./commands/vault.js');
       await runVault(root, positionals[1], values['dry-run'] === true);
       return 0;
@@ -363,7 +393,7 @@ export async function main(argv: string[]): Promise<number> {
     case 'check': {
       const { runCheck } = await import('./commands/check.js');
       if (values.freshness !== undefined && !['stale', 'strict'].includes(values.freshness)) throw new WondevError('--freshness must be stale or strict.');
-      await runCheck(root, values.profile, { freshness: values.freshness as 'stale' | 'strict' | undefined, files: values.files?.split(',').map((f) => f.trim()).filter(Boolean) });
+      await runCheck(root, values.profile, { git: values.git, freshness: values.freshness as 'stale' | 'strict' | undefined, files: values.files?.split(',').map((f) => f.trim()).filter(Boolean) });
       return 0;
     }
 
@@ -403,7 +433,7 @@ export async function main(argv: string[]): Promise<number> {
 
     case 'doctor': {
       const { runDoctor } = await import('./commands/doctor.js');
-      await runDoctor(root, { online: values.online === true });
+      await runDoctor(root, { online: values.online === true, git: values.git });
       return 0;
     }
 

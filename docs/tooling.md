@@ -1,17 +1,21 @@
 # Giving an agent tools
 
-wondev does not install, wrap, or manage any of the tools below. It compiles the knowledge
+wondev compiles the knowledge
 of *how and when to use them* into every agent's config, which is the part that otherwise
 gets written once in `CLAUDE.md`, never repeated in `AGENTS.md`, and forgotten by whoever
 switches editor.
 
 This page is a pattern plus a shortlist. The pattern outlasts the shortlist.
 
-## Why this is not in the starter pack
+## Bundled skills and optional tools
 
-`wondev init` ships no tool-specific skills, deliberately. A skill for one third-party binary
-imposes it on every project that runs `init`, and goes stale the moment that tool changes its
-interface — a stale skill is worse than a missing one, because an agent follows it.
+`wondev init` includes UI UX Pro Max resources, an Understand Anything integration bridge,
+and webapp-testing guidance. Their external runtime requirements are explicit; initialization
+does not install browser runtimes or activate plugins. The [plugin catalog](plugins.md)
+adds inspectable MCP selections, exact pins, and host configuration exports.
+
+See [mapping roles and coverage](upgrades.md#describe-a-mixed-language-workspace) for the
+distinction between native wondev facts, Graphify, Understand Anything, and curated memory.
 
 What the starter pack does ship is `memory/context-discipline.md`, which is the transferable
 half: read the index before the documents, prefer a structural answer over reading files,

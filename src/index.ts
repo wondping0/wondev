@@ -47,6 +47,7 @@ export {
   type SourceConfig,
   type SourceKind,
   type SkillProfile,
+  type MapConfig,
   sourceDirectory,
 } from './core/config.js';
 export { loadProject, hasErrors, type Issue, type LoadResult } from './core/source.js';
@@ -110,3 +111,9 @@ export { runSkillCatalog, runSkillInfo } from './commands/skills.js';
 export { runAgentCheck, runSelection, inspectAgent } from './commands/agent.js';
 export { detectAgent, type AgentEvidence } from './core/agent-environment.js';
 export { BASE_SKILLS } from './core/base-skills.js';
+export { runBundledInstall } from './commands/bundled-skills.js';
+export { inspectGitDistribution, type GitDistribution } from './core/git-distribution.js';
+export { runVaultReconcile } from './commands/vault-reconcile.js';
+export { runPlugins } from './commands/plugins.js';
+export { PLUGIN_CATALOG, type CatalogPlugin } from './core/plugin-catalog.js';
+export type { MapCoverage } from './core/application-map.js';

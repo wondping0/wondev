@@ -94,7 +94,10 @@ export async function saveManifest(root: string, manifest: Manifest): Promise<vo
       Object.entries(manifest.files).sort(([a], [b]) => a.localeCompare(b)),
     ),
   };
-  await writeFileAtomic(absFrom(root, MANIFEST_REL), `${JSON.stringify(sorted, null, 2)}\n`);
+  const content = `${JSON.stringify(sorted, null, 2)}\n`;
+  const existing = await readFileIfExists(absFrom(root, MANIFEST_REL));
+  if (existing !== null && normalizeEol(existing) === content) return;
+  await writeFileAtomic(absFrom(root, MANIFEST_REL), content);
 }
 
 export type PlanAction = 'create' | 'update' | 'unchanged' | 'adopt';
@@ -128,6 +131,13 @@ const REGION_RE = new RegExp(`${REGION_START}([\\s\\S]*?)${REGION_END}`);
 export function extractRegion(fileContent: string): string | null {
   const m = REGION_RE.exec(fileContent);
   return m ? (m[1] ?? '') : null;
+}
+
+/** Git may change text line endings without changing authored content. Legacy manifests
+ * stored either spelling, so accept both while keeping binary resources byte-exact. */
+export function textHashMatches(content: string, hash: string): boolean {
+  const lf = normalizeEol(content);
+  return sha256(content) === hash || sha256(lf) === hash || sha256(lf.replace(/\n/g, '\r\n')) === hash;
 }
 
 function replaceRegion(existing: string, content: string): string {
@@ -211,7 +221,7 @@ export async function planWrites(
 
     if (file.mode === 'whole') {
       const next = file.raw ? file.content : wholeContent(file.content);
-      const hash = (content: string): string => sha256(file.encoding === 'base64' ? Buffer.from(content, 'base64') : content);
+      const hash = (content: string): string => sha256(file.encoding === 'base64' ? Buffer.from(content, 'base64') : normalizeEol(content));
       const ownedHash = hash(next);
       const resource = {
         ...(file.encoding ? { encoding: file.encoding } : {}),
@@ -229,7 +239,7 @@ export async function planWrites(
         });
         continue;
       }
-      if (hash(existing) !== entry.hash) {
+      if (file.encoding === 'base64' ? hash(existing) !== entry.hash : !textHashMatches(existing, entry.hash)) {
         plan.push({
           path: file.path, mode: 'whole', target, action: 'update',
           nextContent: next, ownedHash, conflict: 'modified', ...resource,
@@ -238,7 +248,7 @@ export async function planWrites(
       }
       plan.push({
         path: file.path, mode: 'whole', target,
-        action: existing === next ? 'unchanged' : 'update',
+        action: (file.encoding === 'base64' ? existing === next : normalizeEol(existing) === normalizeEol(next)) ? 'unchanged' : 'update',
         nextContent: next, ownedHash, ...resource,
       });
       continue;

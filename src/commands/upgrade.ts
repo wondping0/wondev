@@ -63,7 +63,7 @@ async function upgradeLocked(root: string, options: UpgradeOptions): Promise<voi
   if (!manifest) {
     throw new WondevError(
       'This project has no starter-pack provenance to compare against.',
-      'It was created before upgrade tracking existed, or .wondev/.templates.json was removed. Starter files must be updated by hand.',
+      'Use `wondev skills install bundled:<name>` (or bundled:all) to add bundled skills without reinitializing. Existing authored files are preserved.',
     );
   }
 
@@ -73,7 +73,7 @@ async function upgradeLocked(root: string, options: UpgradeOptions): Promise<voi
   }
 
   const running = wondevVersion();
-  const shipped = await listTemplateFiles(templates);
+  const shipped = (await listTemplateFiles(templates)).filter((rel) => !manifest.scope || manifest.scope.some((prefix) => rel.startsWith(`${prefix}/`)));
   const filtered = options.only
     ? shipped.filter((rel) => rel === options.only || rel.startsWith(`${options.only}/`))
     : shipped;
@@ -82,7 +82,7 @@ async function upgradeLocked(root: string, options: UpgradeOptions): Promise<voi
     throw new WondevError(`No starter template matches "${options.only}".`);
   }
 
-  const next: TemplateManifest = { version: running, files: { ...manifest.files } };
+  const next: TemplateManifest = { ...manifest, version: running, files: { ...manifest.files } };
   const decisions: Decision[] = [];
   const config = await loadConfig(root);
   const guard = createRootGuard(root);

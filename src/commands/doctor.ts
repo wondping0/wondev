@@ -8,10 +8,12 @@ import { pathExists } from '../util/fs.js';
 import { error, info, style, success, warn } from '../util/log.js';
 import { compareVersions } from '../util/semver.js';
 import { wondevVersion } from '../util/version.js';
+import { inspectGitDistribution } from '../core/git-distribution.js';
 
 export interface DoctorOptions {
   /** Ask the npm registry whether a newer wondev exists. Never happens without this flag. */
   online?: boolean;
+  git?: boolean;
 }
 
 export interface Finding {
@@ -33,6 +35,14 @@ export async function runDoctor(root: string, options: DoctorOptions = {}): Prom
 
   findings.push(nodeFinding(process.versions.node));
   findings.push(...(await checkProject(root)));
+  if (options.git) {
+    const distribution = await inspectGitDistribution(root);
+    if (!distribution.available) findings.push({ level: 'warn', message: distribution.reason! });
+    else {
+      findings.push({ level: 'ok', message: `Git index tracks ${distribution.files.filter((f) => f.status === 'tracked').length}/${distribution.files.length} output/manifest files (commit/push not checked).` });
+      for (const file of distribution.files.filter((f) => f.status !== 'tracked')) findings.push({ level: 'warn', message: `Git ${file.status}: ${file.path}${file.ignoreRule ? ` (${file.ignoreRule})` : ''}` });
+    }
+  }
   if (options.online) findings.push(await checkForUpdate());
 
   for (const finding of findings) {
@@ -152,7 +162,7 @@ async function checkProject(root: string): Promise<Finding[]> {
     const producedBy = manifest.wondevVersion;
     findings.push({
       level: 'ok',
-      message: `${tracked} generated file(s) tracked${producedBy ? `, built by wondev ${producedBy}` : ''}`,
+      message: `${tracked} generated file(s) tracked by the ownership manifest (Git not implied)${producedBy ? `, built by wondev ${producedBy}` : ''}`,
     });
     if (producedBy && producedBy !== wondevVersion()) {
       findings.push({
@@ -166,7 +176,7 @@ async function checkProject(root: string): Promise<Finding[]> {
   if (!templates) {
     findings.push({
       level: 'warn',
-      message: 'no starter-pack provenance; `wondev upgrade` cannot run for this project.',
+      message: 'no starter-pack provenance; use `wondev skills install bundled:<name>` to add skills without init. `wondev upgrade` needs tracked starters.',
     });
   } else if (compareVersions(templates.version, wondevVersion()) < 0) {
     findings.push({

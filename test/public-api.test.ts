@@ -42,6 +42,11 @@ describe('public API', () => {
       'evaluateContext',
       'runContextEval',
       'checkFreshness',
+      'runBundledInstall',
+      'inspectGitDistribution',
+      'runVaultReconcile',
+      'runPlugins',
+      'PLUGIN_CATALOG',
     ]) {
       expect(api, `missing export: ${name}`).toHaveProperty(name);
     }

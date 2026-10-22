@@ -31,6 +31,16 @@ try {
   assert.match(await fs.readFile(path.join(installed, 'docs/knowledge.md'), 'utf8'), /Active vaults/);
   await run('init', '--vault', 'knowledge', '--targets', 'claude,agents');
   assert.equal(JSON.parse(await run('skills', 'catalog', '--json')).length, 11);
+  assert.equal(JSON.parse(await run('plugins', 'catalog', '--json')).length, 13);
+  await fs.access(path.join(installed, 'docs/plugins.md'));
+  await fs.access(path.join(installed, 'docs/upgrades.md'));
+  await run('plugins', 'pin', 'playwright');
+  await run('plugins', 'enable', 'playwright');
+  const mcp = JSON.parse(await run('plugins', 'export', '--agent', 'claude'));
+  assert(mcp.mcpServers.playwright.args.some((arg) => /^@playwright\/mcp@\d+\.\d+\.\d+$/.test(arg)));
+  await run('plugins', 'disable', 'playwright');
+  assert.deepEqual(JSON.parse(await run('plugins', 'export', '--agent', 'generic')).mcpServers, {});
+  await assert.rejects(fs.access(path.join(app, '.mcp.json')), { code: 'ENOENT' });
   const uiSkill = JSON.parse(await run('skills', 'info', 'ui-ux-pro-max', '--json'));
   assert.equal(uiSkill.path, 'knowledge/skills/ui-ux-pro-max/SKILL.md');
   const uiScript = path.join(app, '.agents/skills/ui-ux-pro-max/scripts/search.py');
@@ -88,6 +98,7 @@ try {
   await run('skills', 'sync');
   await run('check');
   await run('map', '--exclude', 'skill-packs/**');
+  assert(JSON.parse(await fs.readFile(path.join(app, '.wondev/map-coverage.json'), 'utf8')).services.length > 0);
   assert((await api.loadProjectContext(app)).project.memory.some((item) => item.id?.startsWith('map-module-')));
   await run('session', 'learn', session, 'session-boundary', '--files', 'src/auth/**');
   const proposals = await fs.readdir(path.join(app, 'knowledge/sessions/proposals'));

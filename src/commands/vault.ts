@@ -23,7 +23,7 @@ async function vaultLocked(root: string, directory: string, dryRun: boolean): Pr
   const guard = createRootGuard(root);
   await guard(`${vault}/index.md`);
   if (await pathExists(path.join(root, vault))) {
-    throw new WondevError(`${vault} already exists.`, 'To use an existing vault, configure sources and vault in wondev.yaml.');
+    throw new WondevError(`${vault} already exists.`, `Preview both memory copies with: wondev vault reconcile ${vault}`);
   }
   const sources = readSources(Object.fromEntries(SOURCE_KINDS.map((kind) => [kind, `${vault}/${kind}`])));
   const moves = SOURCE_KINDS.map((kind) => ({ from: sourceDirectory(kind, config.sources), to: sources[kind]! }));
