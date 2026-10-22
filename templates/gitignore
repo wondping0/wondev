@@ -1,3 +1,5 @@
 .lock
 skill-updates/
+tools/
+**/__pycache__/
 *.wondev-*.tmp

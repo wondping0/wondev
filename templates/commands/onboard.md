@@ -7,6 +7,10 @@ description: Explain this codebase to someone seeing it for the first time
 
 Explain this repository to a competent engineer who has never opened it.
 
+First run `wondev agent check` to inspect host hints, enabled rules and skill prerequisites.
+Use `--agent <target>` when the host is known but environment detection is unavailable.
+Read the `understand-anything` skill when a deeper architecture map is useful.
+
 Cover, in this order:
 
 1. What the project does, in one paragraph.

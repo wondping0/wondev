@@ -1,0 +1,6 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "wondev-project-skills",
+  "version": "1.0.0",
+  "description": "Reusable skills for fixture-project, compiled by wondev."
+}

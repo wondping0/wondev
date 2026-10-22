@@ -147,6 +147,8 @@ export const ALL_SECTIONS: readonly ArtifactSection[] = ['memory', 'skills', 'co
 
 export interface SingleFileTarget {
   engine: 'single-file';
+  /** Optional native Agent Skills directory, in addition to the instructions file. */
+  skills?: string;
   /** Output path relative to project root. */
   path: string;
   /** Defaults to `region` so hand-written content in the same file survives. */
@@ -199,7 +201,15 @@ export interface HtmlTarget {
   path: string;
 }
 
-export type Target = SingleFileTarget | RuleDirTarget | ClaudeTarget | HtmlTarget;
+/** A skills-only package. Host installation/activation remains outside the compiler. */
+export interface SkillPluginTarget {
+  engine: 'skill-plugin';
+  path: string;
+  name: string;
+  version: string;
+}
+
+export type Target = SingleFileTarget | RuleDirTarget | ClaudeTarget | HtmlTarget | SkillPluginTarget;
 
 /** A target plus the registry key it was looked up under. */
 export interface NamedTarget {

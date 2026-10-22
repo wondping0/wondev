@@ -11,6 +11,30 @@ a patch, because it makes `wondev check` fail in every project that upgrades.
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-10-22
+
+### Added
+
+- Eleven default skills: UI UX Pro Max with pinned upstream Python scripts and design
+  data, an Understand Anything integration bridge and full-runtime setup recipe,
+  Anthropic webapp-testing resources, skill discovery, and context maintenance, alongside
+  the six existing procedures. Upstream licenses and per-resource checksums are included.
+- Native `.agents/skills` output for Codex and optional native skill paths on custom
+  single-file targets. The optional `plugin` target packages selected skills with portable,
+  Claude and Codex manifests; host activation and external runtimes remain explicit.
+- `agent check` reports environment hints, rules, profiles, skill prerequisites, plugin
+  manifest presence and generated-output drift. Explicit `--agent` supports custom hosts.
+- `agent use`, `skills enable/disable`, `skills use`, `skills catalog`, and `skills info`
+  provide reversible selection and setup information. Switching refuses to overwrite or
+  retire edited output, preserves source memory, and supports dry-run/no-build.
+
+### Fixed
+
+- Doctor now reads configured vault/source paths when diagnosing source errors.
+
+Generated output changes require this minor release. Rebuild and commit output after
+upgrading. Source schema remains 1; no automatic runtime installation or hooks are added.
+
 ## [1.3.0] - 2026-10-16
 
 ### Added

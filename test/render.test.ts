@@ -56,9 +56,10 @@ function named(name: string): NamedTarget {
 describe('single-file engine', () => {
   const files = renderTarget(project, named('agents'));
 
-  it('produces exactly one file at the target path', () => {
-    expect(files).toHaveLength(1);
+  it('produces instructions and native skills for the agents target', () => {
+    expect(files).toHaveLength(2);
     expect(files[0]?.path).toBe('AGENTS.md');
+    expect(files[1]?.path).toBe('.agents/skills/debugging/SKILL.md');
   });
 
   it('defaults to region mode so an existing file is not destroyed', () => {

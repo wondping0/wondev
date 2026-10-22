@@ -28,6 +28,9 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Verify pinned skill resources
+        run: npm run test:vendor
+
       - name: Build
         run: npm run build
 

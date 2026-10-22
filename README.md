@@ -79,10 +79,26 @@ npx wondev init          # scaffold .wondev/ with a starter pack, then build
 npx wondev check         # validate and detect drift
 ```
 
-`init` writes six ready-to-use skills — `debugging`, `writing-tests`, `code-review`,
-`planning-work`, `git-workflow`, `verify-before-done` — memory scaffolds for architecture,
-conventions, glossary, decision records, and context discipline, and one example subagent.
-Edit them; they are yours.
+`init` writes eleven on-demand skills: **UI UX Pro Max**, an **Understand Anything
+integration bridge**, **webapp-testing**, **skill-discovery**, **context-maintenance**,
+and `debugging`, `writing-tests`, `code-review`, `planning-work`, `git-workflow`,
+`verify-before-done`. It also includes memory scaffolds and an example subagent.
+Edit them; they are yours. UI UX search needs Python 3; full Understand Anything graphs
+need its separate upstream runtime; browser tests need a browser runner. Installing npm
+or running init does not download these runtimes or enable hooks.
+
+```bash
+npx wondev agent check --agent codex  # rules, skills, prerequisites, generated-output drift
+npx wondev skills catalog
+npx wondev skills info understand-anything
+npx wondev skills disable webapp-testing
+npx wondev skills enable webapp-testing
+npx wondev agent use claude --dry-run # preview switching to one target
+```
+
+See [base skills and agent selection](docs/base-skills.md) for profiles, custom hosts,
+plugin packaging, upstream revisions, and installation requirements. Existing projects
+receive the new skills through `wondev upgrade`; local edits are preserved.
 
 Already have `CLAUDE.md` or `.claude/`? Use [`wondev adopt`](#already-have-agent-config)
 instead — it reads what you have rather than writing over it.
@@ -235,8 +251,8 @@ Resource files beside `SKILL.md` become attachments:
     └── rebuild.md
 ```
 
-Claude Code gets the files copied across, where it loads them only when the skill points at
-them. Flat targets like `AGENTS.md` get the *paths* instead — never the contents. Inline
+Claude Code, the `agents` target (Codex), and the optional `plugin` target get resource
+copies in native skill directories. Other flat targets get source paths. Inline
 skills include their bodies in the entry file; on-demand skills expose a reference for
 the agent to open when relevant. Resource paths point to real files in the configured
 sources, so the agent can load additional material when it needs it.

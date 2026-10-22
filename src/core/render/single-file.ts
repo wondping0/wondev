@@ -1,5 +1,6 @@
 import type { Project, RenderedFile, SingleFileTarget } from '../model.js';
 import { flattenProject } from './shared.js';
+import { renderSkills } from './skills.js';
 
 /**
  * Flatten the whole project into one markdown file.
@@ -24,5 +25,8 @@ export function renderSingleFile(
       ? (flattened ?? flattenProject(project))
       : flattenProject(project, target.include);
 
-  return [{ path: target.path, content, mode: target.mode ?? 'region' }];
+  return [
+    { path: target.path, content, mode: target.mode ?? 'region' },
+    ...(target.skills && (!target.include || target.include.includes('skills')) ? renderSkills(project.skills, target.skills) : []),
+  ];
 }

@@ -233,6 +233,10 @@ needed; it does not establish that the note is wrong.
 
 ## Manage portable skills
 
+Version 1.4 bundles eleven base skills and adds `agent check`, reversible skill/host
+selection, native Codex resources, and optional plugin packaging. See
+[base skills and agent selection](base-skills.md) for prerequisites and usage.
+
 Skills can include Markdown references, executable scripts, binary assets, and templates:
 
 ```text

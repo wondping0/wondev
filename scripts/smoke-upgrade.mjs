@@ -61,10 +61,9 @@ try {
   const packed = JSON.parse(await npm(['pack', '--ignore-scripts', '--json', '--pack-destination', temp]));
   await npm(['install', '--ignore-scripts', '--no-audit', '--no-fund', path.join(temp, packed[0].filename)], app);
   assert.equal((await run('--version')).trim(), version);
-  // Default-layout 1.2 output stays valid until opting into new templates/map/lessons.
-  // 1.1 output differs because the 1.2 resource-header contract changed.
-  if (oldProposal) await run('check');
-  else await assert.rejects(() => run('check'), (error) => error.code === 1);
+  // 1.4 adds native .agents/skills to the agents target. Every older baseline must
+  // report generated-output drift and request a rebuild before it can pass check.
+  await assert.rejects(() => run('check'), (error) => error.code === 1 && /wondev build/.test(error.stdout));
   await run('migrate');
   await run('upgrade');
   await run('build');
@@ -78,6 +77,9 @@ try {
   }
   assert.match(await read('.wondev/.gitignore'), /^\.lock$/m);
   assert.equal(await read('.wondev/skills/debugging/SKILL.md'), editedSkill);
+  await fs.access(path.join(app, '.wondev/skills/ui-ux-pro-max/scripts/search.py'));
+  await fs.access(path.join(app, '.agents/skills/ui-ux-pro-max/scripts/search.py'));
+  await fs.access(path.join(app, '.wondev/skills/understand-anything/references/setup.md'));
   assert.equal(await read('.wondev/memory/architecture.md'), editedMemory);
   assert.equal(await read('.claude/skills/debugging/references/project.md'), 'Preserve this authored reference.\r\n');
   assert.deepEqual(await fs.readFile(path.join(app, '.claude/skills/debugging/assets/sample.bin')), binary);

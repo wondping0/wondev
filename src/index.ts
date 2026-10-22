@@ -32,6 +32,7 @@ export type {
   RenderedFile,
   RuleDirTarget,
   SingleFileTarget,
+  SkillPluginTarget,
   Target,
   WriteMode,
 } from './core/model.js';
@@ -105,3 +106,7 @@ export { proposeLearning } from './core/sessions.js';
 export { evaluateContext, type ContextCase, type ContextExpectation, type ContextResult } from './core/context-quality.js';
 export { runContextEval } from './commands/context-eval.js';
 export { checkFreshness, type FreshnessOptions } from './core/freshness.js';
+export { runSkillCatalog, runSkillInfo } from './commands/skills.js';
+export { runAgentCheck, runSelection, inspectAgent } from './commands/agent.js';
+export { detectAgent, type AgentEvidence } from './core/agent-environment.js';
+export { BASE_SKILLS } from './core/base-skills.js';

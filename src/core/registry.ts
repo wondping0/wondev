@@ -38,9 +38,10 @@ export interface RegistryEntry {
 /** Compiler capabilities, independent of what a particular host chooses to execute. */
 export function targetCapabilities(target: Target): { skills: string; resources: string; scoping: string; agents: string } {
   switch (target.engine) {
+    case 'skill-plugin': return { skills: 'portable package; host activation required', resources: 'verbatim copies', scoping: 'skill instructions', agents: 'not packaged' };
     case 'claude': return { skills: 'native directories', resources: 'verbatim copies', scoping: target.rules ? 'native path rules' : 'documented paths', agents: target.agents ? 'native files' : 'references' };
     case 'rule-dir': return { skills: 'rule files', resources: 'source references', scoping: target.frontmatter?.globs ? 'native globs' : 'documented paths', agents: 'source references' };
-    case 'single-file': return { skills: 'source references or inline', resources: 'source references', scoping: 'documented paths', agents: 'source references' };
+    case 'single-file': return { skills: target.skills ? 'native directories + source references' : 'source references or inline', resources: target.skills ? 'verbatim copies' : 'source references', scoping: 'documented paths', agents: 'source references' };
     case 'html': return { skills: 'human guide', resources: 'listed paths', scoping: 'none', agents: 'human guide' };
   }
 }
@@ -54,6 +55,11 @@ export function targetCapabilities(target: Target): { skills: string; resources:
  * how wondev supports agents that do not exist yet.
  */
 export const BUILTIN_TARGETS: Record<string, RegistryEntry> = {
+  plugin: {
+    label: 'Portable skill plugin (Claude / Codex compatibility manifests)',
+    pathVerified: '2026-10-22', addedIn: '1.4.0', readBy: ['Agent Plugins hosts', 'Claude Code', 'Codex'],
+    target: { engine: 'skill-plugin', path: '.wondev/plugins/project', name: 'wondev-project-skills', version: '1.0.0' },
+  },
   guide: {
     label: 'HTML project guide',
     // wondev owns this path; there is no vendor documentation to check it against.
@@ -83,7 +89,7 @@ export const BUILTIN_TARGETS: Record<string, RegistryEntry> = {
 
   agents: {
     label: 'AGENTS.md',
-    pathVerified: '2026-08-11',
+    pathVerified: '2026-10-22',
     addedIn: '0.1.0',
     readBy: [
       'OpenAI Codex',
@@ -103,7 +109,7 @@ export const BUILTIN_TARGETS: Record<string, RegistryEntry> = {
       'Kilo Code',
       'Amp',
     ],
-    target: { engine: 'single-file', path: 'AGENTS.md', mode: 'region' },
+    target: { engine: 'single-file', path: 'AGENTS.md', mode: 'region', skills: '.agents/skills' },
   },
 
   copilot: {
