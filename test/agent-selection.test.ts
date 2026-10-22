@@ -140,6 +140,9 @@ describe('reversible skill and agent selection', () => {
     await select('agent', 'claude-pro');
     expect((await inspectAgent(root, { agent: 'claude-pro', env: {} })).currentAgent.enabled).toBe(true);
     await select('agent', 'plugin');
+    expect((await inspectAgent(root, { agent: 'codex', env: {} })).currentAgent).toMatchObject({ enabled: null, delivery: 'plugin-package; activation-unverified' });
+    await silence(() => runAgentCheck(root, { agent: 'codex' }));
+    expect(process.exitCode).toBeUndefined();
     for (const rel of ['plugin.json', '.codex-plugin/plugin.json', '.claude-plugin/plugin.json']) {
       expect(JSON.parse(await read(root, `.wondev/plugins/project/${rel}`))).toMatchObject({ name: 'wondev-project-skills', version: '1.0.0' });
     }

@@ -43,8 +43,11 @@ export async function inspectAgent(root: string, options: { agent?: string; prof
       } catch { plugins.push({ path: rel, status: 'invalid-json' }); }
     } catch (err) { if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err; }
   }
+  const configured = canonical ? ctx.targets.some((t) => t.name === canonical) : false;
+  const pluginDelivery = !configured && (canonical === 'claude' || canonical === 'agents') && ctx.targets.some((t) => t.target.engine === 'skill-plugin');
   return {
-    currentAgent: { ...detected, canonical, enabled: canonical ? ctx.targets.some((t) => t.name === canonical) : null },
+    currentAgent: { ...detected, canonical, enabled: configured ? true : !canonical || pluginDelivery ? null : false,
+      delivery: pluginDelivery ? 'plugin-package; activation-unverified' : configured ? 'configured-target' : canonical ? 'not-configured' : 'unknown' },
     profile: options.profile ?? ctx.config.profile ?? null,
     targets: ctx.targets.map((t) => ({ name: t.name, ...targetCapabilities(t.target) })),
     rules: ctx.project.memory.filter((m) => !m.status || m.status === 'active').map((m) => ({ path: m.sourcePath, always: m.always, globs: m.globs ?? [] })),
@@ -65,7 +68,8 @@ export async function runAgentCheck(root: string, options: { agent?: string; pro
   else {
     const current = report.currentAgent;
     info(`Current agent: ${current.agent ?? 'unknown or ambiguous; use --agent <target>'} (${current.evidence.join(', ') || 'no environment hints'})`);
-    if (current.agent && !current.enabled) info(`Target is not enabled. Use: wondev agent use ${current.agent}`);
+    if (current.agent && current.enabled === false) info(`Target is not enabled. Use: wondev agent use ${current.agent}`);
+    if (current.delivery.startsWith('plugin-package')) info('A compatible plugin package is configured. Activate it in the host; activation is not verified by this check.');
     info(`Profile: ${report.profile ?? 'all'}; targets: ${report.targets.map((t) => `${t.name} [${t.skills}]`).join(', ')}`);
     info(`Rules: ${report.rules.length}; output changes: ${report.output.changes.length}; retired files: ${report.output.retired.length}`);
     for (const rule of report.rules) info(`  rule ${rule.path}: ${rule.always ? 'always' : 'on demand'}${rule.globs.length ? `; paths ${rule.globs.join(', ')}` : ''}`);

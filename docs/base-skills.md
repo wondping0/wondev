@@ -45,6 +45,8 @@ subscription tiers, browser installation, or semantic contradictions between pro
 Missing optional prerequisites are reported without blocking unrelated work. Source
 errors, output drift, an explicitly/detectably mismatched target, or invalid local plugin
 JSON produce a nonzero exit code. Use `wondev check` for normal generated-output CI checks.
+If the host has a compatible plugin package configured instead of a native target, the
+report marks activation as unverified rather than telling you to generate a duplicate copy.
 
 ## Change a skill or host
 
