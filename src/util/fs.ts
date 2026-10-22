@@ -65,7 +65,7 @@ export async function writeFileAtomic(target: string, content: string | Uint8Arr
 }
 
 /** Publish a complete new file atomically, refusing an existing destination. */
-export async function writeFileAtomicExclusive(target: string, content: string): Promise<void> {
+export async function writeFileAtomicExclusive(target: string, content: string | Uint8Array): Promise<void> {
   await ensureDir(path.dirname(target));
   const tmp = `${target}.wondev-${process.pid}-${crypto.randomBytes(4).toString('hex')}.tmp`;
   try {

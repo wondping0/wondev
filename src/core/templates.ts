@@ -27,6 +27,8 @@ export interface TemplateRecord {
 export interface TemplateManifest {
   version: string;
   files: Record<string, TemplateRecord>;
+  /** Selective installs in adopted projects must not add unrelated starter templates. */
+  scope?: string[];
 }
 
 /**
@@ -44,7 +46,8 @@ export async function loadTemplateManifest(root: string): Promise<TemplateManife
     if (typeof parsed !== 'object' || parsed === null || typeof parsed.files !== 'object') {
       return null;
     }
-    return { version: parsed.version ?? '0.0.0', files: parsed.files ?? {} };
+    if (parsed.scope !== undefined && (!Array.isArray(parsed.scope) || parsed.scope.some((s) => typeof s !== 'string' || !/^skills\/[a-z0-9][a-z0-9-]*$/.test(s)))) return null;
+    return { version: parsed.version ?? '0.0.0', files: parsed.files ?? {}, ...(parsed.scope ? { scope: parsed.scope } : {}) };
   } catch {
     return null;
   }
@@ -56,6 +59,7 @@ export async function saveTemplateManifest(
 ): Promise<void> {
   const sorted: TemplateManifest = {
     version: manifest.version,
+    ...(manifest.scope ? { scope: manifest.scope } : {}),
     files: Object.fromEntries(
       Object.entries(manifest.files).sort(([a], [b]) => a.localeCompare(b)),
     ),

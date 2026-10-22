@@ -15,6 +15,7 @@ import { WondevError } from '../util/errors.js';
 import { info } from '../util/log.js';
 import { loadContext } from './context.js';
 import { projectOutput } from './output.js';
+import { loadPluginLock } from '../core/plugin-catalog.js';
 
 export async function inspectAgent(root: string, options: { agent?: string; profile?: string; env?: NodeJS.ProcessEnv; python?: () => Promise<string | null> } = {}) {
   const ctx = await loadContext(root, options.profile);
@@ -45,6 +46,7 @@ export async function inspectAgent(root: string, options: { agent?: string; prof
   }
   const configured = canonical ? ctx.targets.some((t) => t.name === canonical) : false;
   const pluginDelivery = !configured && (canonical === 'claude' || canonical === 'agents') && ctx.targets.some((t) => t.target.engine === 'skill-plugin');
+  const pluginSelections = Object.entries((await loadPluginLock(root)).plugins).map(([id, pin]) => ({ id, version: pin.version, enabledInExport: pin.enabled, hostActivation: 'unverified' }));
   return {
     currentAgent: { ...detected, canonical, enabled: configured ? true : !canonical || pluginDelivery ? null : false,
       delivery: pluginDelivery ? 'plugin-package; activation-unverified' : configured ? 'configured-target' : canonical ? 'not-configured' : 'unknown' },
@@ -57,7 +59,7 @@ export async function inspectAgent(root: string, options: { agent?: string; prof
     })),
     prerequisites: { python, understandAnything: upstream, browser: active.has('webapp-testing') ? 'not-probed; verify project runner, Playwright and browser before testing' : undefined },
     output: { changes: plan.filter((p) => p.action !== 'unchanged' || p.conflict).map((p) => ({ path: p.path, action: p.action, conflict: p.conflict })), retired },
-    plugins, issues: ctx.issues,
+    plugins, pluginSelections, issues: ctx.issues,
     limits: 'Environment hints do not prove host identity. Manifests do not prove plugin activation. Global plugins, entitlements and semantic rule conflicts are not inspected.',
   };
 }
@@ -78,6 +80,7 @@ export async function runAgentCheck(root: string, options: { agent?: string; pro
     if (report.prerequisites.understandAnything) info(`Understand Anything: ${report.prerequisites.understandAnything.status}; wondev skills info understand-anything shows setup instructions.`);
     if (report.prerequisites.browser) info(`Browser: ${report.prerequisites.browser}`);
     for (const plugin of report.plugins) info(`Plugin ${plugin.path}: ${plugin.status}`);
+    for (const plugin of report.pluginSelections) info(`Catalog ${plugin.id}@${plugin.version}: ${plugin.enabledInExport ? 'included' : 'disabled'} in export; host activation unverified`);
     for (const change of report.output.changes) info(`  ${change.conflict ?? change.action} ${change.path}`);
     for (const issue of report.issues) info(`${issue.level}: ${issue.file}: ${issue.message}`);
     info('Change selection: wondev skills enable|disable <name>; wondev skills use <profile>; wondev agent use <target>.');

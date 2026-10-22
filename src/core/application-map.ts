@@ -15,7 +15,15 @@ export const MAP_END = '<!-- wondev:application-map:end -->';
 export interface ImportFact { specifier: string; line: number; resolved?: string }
 export interface SourceFact { path: string; imports: ImportFact[]; test: boolean; error?: string }
 export interface PackageFact { path: string; name: string; entries: string[]; scripts: string[]; dependencies: string[] }
-export interface ApplicationMap { files: SourceFact[]; packages: PackageFact[]; warnings: string[] }
+export interface MapCoverage {
+  roots: Record<string, string>;
+  services: Array<{ name: string; root: string; parsed: number; parseErrors: number; packages: number; unsupported: number }>;
+  unsupported: Array<{ path: string; language: string }>;
+  unresolvedImports: number;
+  excludedEntries: number;
+  limits: string[];
+}
+export interface ApplicationMap { files: SourceFact[]; packages: PackageFact[]; warnings: string[]; coverage?: MapCoverage }
 export interface MapNote { id: string; slug: string; content: string; observed: string }
 
 /** Parse syntax without executing code, resolving packages, or reading tsconfig plugins. */
@@ -64,6 +72,11 @@ function resolveImport(from: string, specifier: string, files: Set<string>): str
 export async function scanApplication(root: string, config: WondevConfig, excludes: string[] = []): Promise<ApplicationMap> {
   const excluded = [...SOURCE_KINDS.map((kind) => sourceDirectory(kind, config.sources)), ...(config.vault ? [config.vault] : [])];
   const candidates: string[] = [];
+  const roots = config.map?.roots ?? { project: '.' };
+  excludes = [...(config.map?.exclude ?? []), ...excludes];
+  const unsupported: MapCoverage['unsupported'] = [];
+  const languages: Record<string, string> = { '.py': 'Python', '.go': 'Go', '.rs': 'Rust', '.java': 'Java', '.kt': 'Kotlin', '.kts': 'Kotlin', '.cs': 'C#', '.php': 'PHP', '.rb': 'Ruby', '.swift': 'Swift', '.dart': 'Dart', '.c': 'C', '.h': 'C/C++', '.cpp': 'C++', '.cc': 'C++', '.vue': 'Vue SFC', '.svelte': 'Svelte', '.sql': 'SQL', '.sh': 'Shell', '.ps1': 'PowerShell', '.ex': 'Elixir', '.exs': 'Elixir', '.scala': 'Scala', '.fs': 'F#', '.lua': 'Lua', '.r': 'R' };
+  let excludedEntries = 0;
   const guard = createRootGuard(root);
   let visited = 0;
   const walk = async (dir: string): Promise<void> => {
@@ -71,12 +84,19 @@ export async function scanApplication(root: string, config: WondevConfig, exclud
     for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
       if (++visited > 50000) throw new WondevError('Application map exceeds 50000 directory entries. Narrow the scan with --exclude.');
       const rel = dir ? `${dir}/${entry.name}` : entry.name;
-      if (entry.name.startsWith('.') || IGNORED.has(entry.name) || excluded.some((base) => rel === base || rel.startsWith(`${base}/`)) || matchesPatterns(rel, excludes)) continue;
+      if (entry.name.startsWith('.') || IGNORED.has(entry.name) || excluded.some((base) => rel === base || rel.startsWith(`${base}/`)) || matchesPatterns(rel, excludes)) { excludedEntries++; continue; }
       if (entry.isDirectory()) { await guard(rel); await walk(rel); }
       else if (entry.isFile() && (entry.name === 'package.json' || EXTENSIONS.includes(path.posix.extname(entry.name)))) candidates.push(rel);
+      else if (entry.isFile() && languages[path.posix.extname(entry.name).toLowerCase()]) unsupported.push({ path: rel, language: languages[path.posix.extname(entry.name).toLowerCase()]! });
     }
   };
-  await walk('');
+  for (const directory of Object.values(roots)) {
+    const rel = directory === '.' ? '' : directory;
+    if (rel && (rel.split('/').some((part) => part.startsWith('.') || IGNORED.has(part)) || excluded.some((base) => rel === base || rel.startsWith(`${base}/`)))) throw new WondevError(`Map root is an excluded or knowledge directory: ${directory}`);
+    await guard(rel ? `${rel}/.map-root-check` : '.map-root-check');
+    if (!await fs.stat(path.join(root, rel)).then((s) => s.isDirectory()).catch(() => false)) throw new WondevError(`Map root is not a directory: ${directory}`);
+    await walk(rel);
+  }
   if (candidates.length > 10000) throw new WondevError('Application map exceeds 10000 source files. Narrow the scan with --exclude.');
   const map: ApplicationMap = { files: [], packages: [], warnings: [] };
   let bytes = 0;
@@ -107,6 +127,15 @@ export async function scanApplication(root: string, config: WondevConfig, exclud
     const resolved = resolveImport(file.path, item.specifier, names);
     if (resolved) item.resolved = resolved;
   }
+  map.coverage = {
+    roots, unsupported: unsupported.sort((a, b) => a.path.localeCompare(b.path)), excludedEntries,
+    unresolvedImports: map.files.flatMap((f) => f.imports).filter((i) => !i.resolved).length,
+    services: Object.entries(roots).map(([name, directory]) => {
+      const inside = (rel: string): boolean => directory === '.' || rel.startsWith(`${directory}/`);
+      return { name, root: directory, parsed: map.files.filter((f) => inside(f.path) && !f.error).length, parseErrors: map.files.filter((f) => inside(f.path) && f.error).length, packages: map.packages.filter((p) => inside(p.path)).length, unsupported: unsupported.filter((f) => inside(f.path)).length };
+    }),
+    limits: ['Only JS/TS literal imports and package.json declarations are mapped.', 'Other listed languages are inventoried, not parsed. Unknown extensions and excluded trees are not a language coverage guarantee.', 'Aliases, package exports, dynamic/runtime calls, HTTP/RPC, queues, database relations and cross-language edges require curated evidence.'],
+  };
   return map;
 }
 

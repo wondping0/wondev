@@ -61,9 +61,10 @@ try {
   const packed = JSON.parse(await npm(['pack', '--ignore-scripts', '--json', '--pack-destination', temp]));
   await npm(['install', '--ignore-scripts', '--no-audit', '--no-fund', path.join(temp, packed[0].filename)], app);
   assert.equal((await run('--version')).trim(), version);
-  // 1.4 adds native .agents/skills to the agents target. Every older baseline must
-  // report generated-output drift and request a rebuild before it can pass check.
-  await assert.rejects(() => run('check'), (error) => error.code === 1 && /wondev build/.test(error.stdout));
+  // Pre-1.4 output lacks native Codex skills. 1.5 keeps the 1.4 output layout, so that
+  // baseline must already pass, including its legacy CRLF resource hashes.
+  if (major === 1 && minor < 4) await assert.rejects(() => run('check'), (error) => error.code === 1 && /wondev build/.test(error.stdout));
+  else await run('check');
   await run('migrate');
   await run('upgrade');
   await run('build');

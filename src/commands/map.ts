@@ -14,7 +14,7 @@ import { info } from '../util/log.js';
 
 const STATE = '.wondev/.map.json';
 interface MapState { version: 1; notes: Record<string, { hash: string; observed: string }> }
-export interface MapOptions { dryRun?: boolean; noBuild?: boolean; exclude?: string[] }
+export interface MapOptions { dryRun?: boolean; noBuild?: boolean; exclude?: string[]; json?: boolean }
 
 function region(raw: string): { start: number; end: number; text: string } {
   const start = raw.indexOf(MAP_START);
@@ -29,6 +29,7 @@ export async function runMap(root: string, options: MapOptions = {}): Promise<vo
     if (hasErrors(ctx.issues)) throw new WondevError('Fix source validation errors before mapping the application.');
     const guard = createRootGuard(root);
     await guard(STATE);
+    await guard('.wondev/map-coverage.json');
     const rawState = await readFileIfExists(path.join(root, STATE));
     let state: MapState = { version: 1, notes: {} };
     if (rawState !== null) {
@@ -68,9 +69,15 @@ export async function runMap(root: string, options: MapOptions = {}): Promise<vo
     }
     issues.push(...memoryLinkIssues(prospective));
     if (hasErrors(issues)) throw new WondevError(`Invalid application map:\n${issues.map((i) => i.message).join('\n')}`);
-    for (const warning of map.warnings) info(`Parse warning: ${warning}`);
     const changed = plan.filter((item) => item.before !== item.content);
-    info(`${options.dryRun ? 'Would refresh' : 'Refreshing'} ${changed.length} map note(s); ${map.files.length} JS/TS files, ${map.packages.length} package(s).`);
+    if (options.json) info(JSON.stringify({ dryRun: !!options.dryRun, notes: changed.map((p) => p.path), coverage: map.coverage, warnings: map.warnings }, null, 2));
+    else {
+      for (const warning of map.warnings) info(`Parse warning: ${warning}`);
+      info(`${options.dryRun ? 'Would refresh' : 'Refreshing'} ${changed.length} map note(s); ${map.files.length} JS/TS files, ${map.packages.length} package(s).`);
+      for (const service of map.coverage!.services) info(`  ${service.name} (${service.root}): ${service.parsed} parsed, ${service.parseErrors} parse errors, ${service.unsupported} unsupported source file(s).`);
+      info(`Coverage: ${map.coverage!.unresolvedImports} external/unresolved imports; details in .wondev/map-coverage.json after refresh.`);
+      for (const limit of map.coverage!.limits) info(limit);
+    }
     if (options.dryRun) return;
     // Check the complete plan before touching any notes; individual writes also recheck.
     for (const item of plan) if (await readFileIfExists(path.join(root, item.path)) !== item.before) throw new WondevError(`Application map source changed during scan: ${item.path}`);
@@ -81,7 +88,8 @@ export async function runMap(root: string, options: MapOptions = {}): Promise<vo
       else await writeFileAtomic(path.join(root, item.path), item.content);
     }
     await writeFileAtomic(path.join(root, STATE), `${JSON.stringify(state, null, 2)}\n`);
+    await writeFileAtomic(path.join(root, '.wondev/map-coverage.json'), `${JSON.stringify(map.coverage, null, 2)}\n`);
   };
   if (options.dryRun) await execute(); else await withProjectLock(root, execute);
-  if (!options.dryRun && !options.noBuild) await runBuild(root);
+  if (!options.dryRun && !options.noBuild) await runBuild(root, { quiet: options.json });
 }

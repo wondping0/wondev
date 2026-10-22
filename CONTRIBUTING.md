@@ -7,7 +7,7 @@ npm ci
 npm run verify   # typecheck, build, then behavior tests with coverage gates
 npm run test:package   # pack, install into a temporary app, and exercise the shipped CLI
 npm run test:upgrade   # install published 1.1.1, customize it, then upgrade to this build
-npm run test:upgrade:previous   # previous knowledge release, 1.2.0
+npm run test:upgrade:previous   # previous release, 1.4.0
 ```
 
 CI runs the same typecheck, build, and coverage gates on Windows, macOS, and Linux with

@@ -1,5 +1,8 @@
 # Active vaults, task context, and shared skills
 
+For existing projects, see [upgrade and vault reconciliation](upgrades.md). For curated
+integrations and explicit version control, see [plugin controls](plugins.md).
+
 wondev keeps project knowledge in ordinary files and compiles it for each agent. Obsidian
 is an optional editor for those same sources. No Obsidian server, plugin, subscription,
 embedding service, or model API is required. Builds and context queries work offline.

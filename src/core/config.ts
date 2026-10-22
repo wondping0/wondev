@@ -24,6 +24,7 @@ export const SOURCE_KINDS = ['memory', 'skills', 'commands', 'agents', 'sessions
 export type SourceKind = typeof SOURCE_KINDS[number];
 export type SourceConfig = Partial<Record<SourceKind, string>>;
 export interface SkillProfile { skills: string[] }
+export interface MapConfig { roots: Record<string, string>; exclude?: string[] }
 
 export function sourceDirectory(kind: SourceKind, sources: SourceConfig = {}): string {
   return sources[kind] ?? `${WONDEV_DIR}/${kind}`;
@@ -106,6 +107,7 @@ export interface WondevConfig {
   profile?: string;
   /** Disabled skills remain authored sources and can be enabled again. */
   disabledSkills?: string[];
+  map?: MapConfig;
 }
 
 export function wondevDir(root: string): string {
@@ -160,6 +162,19 @@ export async function loadConfig(root: string): Promise<WondevConfig> {
   }
 
   const config: WondevConfig = { name, targets, customTargets, schema };
+  if (obj['map'] !== undefined) {
+    const value = obj['map'] as { roots?: unknown; exclude?: unknown } | null;
+    if (!value || typeof value !== 'object' || Array.isArray(value) || !value.roots || typeof value.roots !== 'object' || Array.isArray(value.roots) || !Object.keys(value.roots).length) throw new WondevError('map.roots must map service names to project directories.');
+    const roots: Record<string, string> = {};
+    for (const [name, directory] of Object.entries(value.roots)) {
+      if (!/^[a-z0-9][a-z0-9-]*$/.test(name)) throw new WondevError(`Invalid map service name: ${name}`);
+      roots[name] = directory === '.' ? '.' : projectDirectory(directory, `map.roots.${name}`);
+    }
+    const directories = Object.values(roots).map((dir) => dir.toLowerCase());
+    if (directories.some((a, i) => directories.some((b, j) => j > i && (a === '.' || b === '.' || a === b || a.startsWith(`${b}/`) || b.startsWith(`${a}/`))))) throw new WondevError('map.roots must not overlap.');
+    if (value.exclude !== undefined && (!Array.isArray(value.exclude) || value.exclude.some((p) => typeof p !== 'string' || !p.trim()))) throw new WondevError('map.exclude must be a list of glob patterns.');
+    config.map = { roots, ...(value.exclude ? { exclude: value.exclude as string[] } : {}) };
+  }
   if (obj['sources'] !== undefined) config.sources = readSources(obj['sources']);
   if (obj['vault'] !== undefined) config.vault = projectDirectory(obj['vault'], 'vault');
   if (obj['profiles'] !== undefined) {

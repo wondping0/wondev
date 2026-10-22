@@ -98,7 +98,50 @@ npx wondev agent use claude --dry-run # preview switching to one target
 
 See [base skills and agent selection](docs/base-skills.md) for profiles, custom hosts,
 plugin packaging, upstream revisions, and installation requirements. Existing projects
-receive the new skills through `wondev upgrade`; local edits are preserved.
+with starter provenance receive new skills through `wondev upgrade`; local edits are
+preserved. After `adopt`, install only the bundles you want:
+
+```bash
+npx wondev skills install bundled:understand-anything
+npx wondev skills install bundled:ui-ux-pro-max --dry-run
+```
+
+### Curated plugins, explicit control
+
+Browse eleven bundled skills plus **Playwright MCP** and **Context7 MCP**, with upstream
+sources, access requirements, prerequisites, and the date metadata was checked. Pin an
+exact version, choose what enters your host configuration, and check for newer releases
+without silently updating or activating anything.
+
+```bash
+npx wondev plugins catalog
+npx wondev plugins info playwright
+npx wondev plugins pin playwright        # records an exact version; starts disabled
+npx wondev plugins enable playwright     # includes it in the next export
+npx wondev plugins check --online        # explicit registry check; leaves the pin intact
+npx wondev plugins export --agent codex  # prints configuration for review
+```
+
+Pins live in `.wondev/plugins.lock.json`. Export supports Codex TOML and Claude/generic
+MCP JSON. Apply the reviewed snippet using your host's configuration workflow; these
+commands do not install servers or change a running host. Re-exporting a disabled plugin
+omits it; remove its existing host entry when applying that change. Curated means source
+and integration metadata were checked, **not a security guarantee**. Full details:
+[plugin catalog and controls](docs/plugins.md).
+
+### Reliable upgrades and shared checkouts
+
+- LF/CRLF changes in generated text and Markdown references do not cause false conflicts. Real text edits still
+  block a build; binary skill assets keep byte-exact checks.
+- `wondev check --git` checks whether managed outputs and their ownership manifest are
+  in the Git index. `wondev doctor --git` also names ignore rules hiding outputs.
+- `wondev vault reconcile knowledge` previews duplicate memory, content conflicts,
+  titles, and links before switching an existing vault to one active memory source.
+- Configure service roots under `map.roots`; `wondev map --dry-run --json` reports parsed
+  JS/TS, unsupported source languages, parse errors, and unresolved imports.
+
+See [upgrade and migration workflows](docs/upgrades.md) for conflict resolutions, backups,
+Git diagnostics, and mixed-language workspaces.
 
 Already have `CLAUDE.md` or `.claude/`? Use [`wondev adopt`](#already-have-agent-config)
 instead — it reads what you have rather than writing over it.
@@ -218,8 +261,8 @@ description: Use when investigating a bug or failing test, before proposing a fi
 > [!TIP]
 > Skills are also how you teach an agent to use a **tool** — a code-graph indexer, a linter
 > with custom rules, a browser driver. What to write down, and which tools are worth the
-> trouble, is in [docs/tooling.md](docs/tooling.md). wondev ships no tool-specific skills by
-> default, on purpose.
+> trouble, is in [docs/tooling.md](docs/tooling.md). Bundled integrations state their runtime
+> requirements; installing wondev does not activate third-party runtimes.
 
 **Agents** — subagents that run with their own context window. As with skills, the
 `description` is the *dispatch rule*: it is what the calling agent matches against when

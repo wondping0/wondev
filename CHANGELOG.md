@@ -11,6 +11,37 @@ a patch, because it makes `wondev check` fail in every project that upgrades.
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-10-22
+
+### Fixed
+
+- LF/CRLF-only differences in generated Markdown resources no longer cause false
+  ownership conflicts. Legacy hashes are accepted; binary comparisons stay byte-exact.
+  An unchanged ownership manifest is no longer rewritten on a no-op build.
+- Adopted projects can install `bundled:<name>` or `bundled:all` skills without starter
+  provenance. Selective installs scope future starter upgrades and preserve collisions.
+- Diagnostics distinguish ownership-manifest tracking from Git index tracking.
+
+### Added
+
+- Optional `check --git` and `doctor --git` distribution checks, including ignored,
+  untracked and missing output, ownership manifests, and matching ignore rules.
+- `vault reconcile` previews legacy memory copies, titles, duplicates, conflicts, and
+  note links. Applying requires a current review hash, preserves original files/config
+  in a backup, and selects one active memory library after conflict resolution.
+- `map.roots` and configured exclusions for mixed workspaces; explicit per-service
+  language/parser coverage, unresolved imports, and `.wondev/map-coverage.json` reports.
+- A curated catalog of bundled skills and optional Playwright/Context7 MCP integrations.
+  Exact pins, export enable/disable, explicit registry update/integrity checks, and
+  Codex/Claude/generic configuration snippets. No automatic host activation or safety
+  certification; external server execution remains a host action.
+- README, landing page, migration guide and plugin guide describing capabilities,
+  prerequisites, Graphify/mapping/runtime roles, and limits.
+
+Source schema remains 1. Existing native output layouts are unchanged. Rebuild after
+upgrading; EOL hash normalization may update legacy ownership metadata once. All new
+network, Git-distribution, plugin-selection and reconciliation operations are explicit.
+
 ## [1.4.0] - 2026-10-22
 
 ### Added

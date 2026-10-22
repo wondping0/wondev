@@ -7,12 +7,13 @@ import { error, info, plural, style, success, warn } from '../util/log.js';
 import { wondevVersion } from '../util/version.js';
 import { loadContext } from './context.js';
 import { checkFreshness, type FreshnessOptions } from '../core/freshness.js';
+import { inspectGitDistribution } from '../core/git-distribution.js';
 
 /**
  * The CI entry point. Reports every problem in one pass and exits non-zero if any of them
  * would make the generated files wrong or out of date.
  */
-export async function runCheck(root: string, profile?: string, options: FreshnessOptions = {}): Promise<void> {
+export async function runCheck(root: string, profile?: string, options: FreshnessOptions & { git?: boolean } = {}): Promise<void> {
   const ctx = await loadContext(root, profile);
 
   let errors = 0;
@@ -37,6 +38,15 @@ export async function runCheck(root: string, profile?: string, options: Freshnes
   const { files, owners } = await projectOutput(ctx, ctx.targets);
   const manifest = await loadManifest(root);
   const plan = await planWrites(root, files, owners, manifest);
+
+  if (options.git) {
+    const distribution = await inspectGitDistribution(root);
+    if (!distribution.available) throw new WondevError(distribution.reason!);
+    const omitted = distribution.files.filter((file) => file.status !== 'tracked');
+    for (const file of omitted) error(`Git ${file.status}: ${file.path}${file.ignoreRule ? ` (${file.ignoreRule})` : ''}`);
+    if (omitted.length) throw new WondevError(`${omitted.length} managed output or ownership manifest file(s) are not distributed by Git.`, 'Review ignore rules, then stage the intended outputs and .wondev/.manifest.json. Manifest ownership does not imply Git tracking.');
+    info(`Git distribution: ${distribution.files.length} output/manifest file(s) tracked in the index; this does not verify a commit or push.`);
+  }
 
   const conflicts = plan.filter((p) => p.conflict !== undefined);
   for (const c of conflicts) {

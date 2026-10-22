@@ -12,7 +12,7 @@ import { loadConfig } from '../core/config.js';
 export async function runSkillCatalog(json = false): Promise<void> {
   if (json) info(JSON.stringify(BASE_SKILLS, null, 2));
   else {
-    info('Bundled on wondev init; existing projects receive additions with wondev upgrade.');
+    info('Bundled on wondev init; upgrade tracked starters, or use skills install bundled:<name> after adopt.');
     for (const skill of BASE_SKILLS) info(`${skill.name} [${skill.kind}] — ${skill.requires}`);
     info('Use wondev skills info <name> for project paths and setup. External runtimes are not installed by npm install or init.');
   }
@@ -22,7 +22,7 @@ export async function runSkillInfo(root: string, name: string, json = false): Pr
   const config = await loadConfig(root);
   const { project } = await loadProject(root, config.name, config.sources, config.vault);
   const skill = project.skills.find((s) => s.name === name);
-  if (!skill) throw new WondevError(`Unknown project skill: ${name}`, 'Run `wondev skills catalog`; use `wondev upgrade` to receive newly bundled skills.');
+  if (!skill) throw new WondevError(`Unknown project skill: ${name}`, BASE_SKILLS.some((s) => s.name === name) ? `Install it with: wondev skills install bundled:${name}` : 'Run `wondev skills catalog` to see available bundled skills.');
   const ctx = await loadContext(root);
   const report = { name, path: skill.sourcePath, active: ctx.project.skills.some((s) => s.name === name),
     description: skill.description, metadata: skill.frontmatter ?? {},

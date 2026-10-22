@@ -1,8 +1,9 @@
 # Releasing wondev
 
-Version 1.4.0 adds bundled base skills, native Codex skill resources, portable plugin
-packages, agent diagnostics, and reversible skill/host selection. See [base skills](base-skills.md)
-and [changelog](../CHANGELOG.md).
+Version 1.5.0 fixes Windows Markdown EOL conflicts and adds selective bundled installs,
+Git distribution diagnostics, existing-vault reconciliation, service coverage reports, and
+curated plugin controls. See [upgrade workflows](upgrades.md), [plugin controls](plugins.md),
+and the [changelog](../CHANGELOG.md).
 
 ## Verify the release candidate
 
@@ -20,7 +21,7 @@ git diff --check
 smoke test installs the real tarball into a fresh application and exercises the shipped
 CLI. The upgrade smoke test installs published 1.1.1, makes user changes, installs the
 candidate, and checks the documented upgrade and vault-conversion workflows. CI and release
-also run these upgrade checks against the previous release, 1.3.0.
+also run these upgrade checks against the previous release, 1.4.0.
 
 CI runs the verification matrix on Node 20/22 across Windows, macOS, and Linux. Package
 and upgrade smoke tests run on all three platforms with Node 22. Local success does not
@@ -61,11 +62,11 @@ publishing is confirmed. This repository does not track or establish its current
 
 The repository's release mechanism is `.github/workflows/release.yml`. A pushed `v*` tag
 starts it. Use the tag for the package.json version only after the reviewed commit's CI is
-green. For the 1.4.0 release:
+green. For the 1.5.0 release:
 
 ```bash
-git tag -a v1.4.0 -m "wondev 1.4.0"
-git push origin v1.4.0
+git tag -a v1.5.0 -m "wondev 1.5.0"
+git push origin v1.5.0
 ```
 
 Pushing this tag publishes publicly to npm if verification succeeds. The workflow uses
@@ -80,14 +81,14 @@ a new version.
 After the workflow succeeds, verify the registry record:
 
 ```bash
-npm view wondev@1.4.0 version dist.integrity --json
+npm view wondev@1.5.0 version dist.integrity --json
 npm view wondev dist-tags --json
 ```
 
 ## Upgrade an application
 
 ```bash
-npm install --save-dev wondev@1.4.0
+npm install --save-dev wondev@1.5.0
 npx wondev migrate
 npx wondev upgrade
 npx wondev build
@@ -97,7 +98,7 @@ npx wondev check
 Review any `.new` offers and generated-file changes before committing them. Existing source
 paths remain the default. To adopt the active vault afterward, run `npx wondev vault knowledge`,
 then build and check again. `knowledge/` must not already exist for this conversion command;
-the [guide](knowledge.md) describes configuring an existing vault directly.
+use `wondev vault reconcile knowledge` to preview an existing vault. See [migration guidance](upgrades.md).
 
 ## Schema changes and release history
 

@@ -1,8 +1,12 @@
 # Base skills and agent selection
 
+After `wondev adopt`, add any bundled skill with `wondev skills install bundled:<name>`
+or explicitly select `bundled:all`. This does not require starter provenance or another
+init. See [upgrade workflows](upgrades.md) and [curated plugin controls](plugins.md).
+
 `wondev init` bundles eleven skills locally. They are procedures and resources loaded
 on demand; they do not train a model, install OS tools, or activate host plugins.
-Use `wondev upgrade --dry-run`, then `wondev upgrade` in an existing application.
+Use `wondev upgrade --dry-run`, then `wondev upgrade` in an application with tracked starters.
 Template provenance preserves user edits and offers incoming changes for review.
 
 | Skill | Included | Prerequisites |

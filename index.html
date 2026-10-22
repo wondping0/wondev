@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>wondev — one source, every AI agent</title>
-<meta name="description" content="A CLI that compiles your AI agent knowledge from one source into every agent's config format: CLAUDE.md, AGENTS.md, .cursor/rules and more.">
+<meta name="description" content="Shared application memory, curated skills and plugin controls for AI agents. Compile one source for Claude, Codex and more, with explicit upgrades and vault migration.">
 <meta property="og:title" content="wondev — one source, every AI agent">
-<meta property="og:description" content="Write agent knowledge once. Compile it for Claude Code, Codex, Cursor, Copilot, Gemini, and nine more.">
+<meta property="og:description" content="One shared memory for your agents. Curated skills, exact plugin pins, Windows-friendly checks and reviewable vault migration.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://wondping0.github.io/wondev/">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>⌘</text></svg>">
@@ -60,6 +60,7 @@ body {
 }
 
 a { color: inherit; }
+code { overflow-wrap: anywhere; }
 
 :focus-visible {
   outline: 2px solid var(--brand);
@@ -436,6 +437,7 @@ footer a:hover { color: var(--ink); }
     <a class="wordmark" href="#top">won<span>dev</span></a>
     <nav class="navlinks" aria-label="Primary">
       <a href="#how">How it works</a>
+      <a href="#plugins">Plugins</a>
       <a href="#commands">Commands</a>
       <a href="#safety">Safety</a>
       <a href="https://github.com/wondping0/wondev">GitHub</a>
@@ -450,7 +452,8 @@ footer a:hover { color: var(--ink); }
     <h1>One source.<br><em>Every agent.</em></h1>
     <p class="lede">
       Write what your AI agents need to know once. wondev compiles it into the config
-      format each one actually reads.
+      format each one actually reads. Keep application memory, development skills, and
+      plugin choices under your team's control.
     </p>
 
     <div class="compile">
@@ -524,7 +527,7 @@ footer a:hover { color: var(--ink); }
       <div class="engine">
         <div class="engine__name">single-file</div>
         <div>
-          <p class="engine__what">Everything flattened into one markdown file.</p>
+          <p class="engine__what">Always-on guidance plus references to knowledge loaded when needed. Codex also gets native skill resources.</p>
           <p class="engine__who">Codex, Copilot, Gemini CLI, Aider, Zed, Junie, and the 16 tools that read AGENTS.md.</p>
         </div>
       </div>
@@ -565,13 +568,62 @@ footer a:hover { color: var(--ink); }
     <p class="marker">&lt;!-- wondev:end --&gt;</p>
   </section>
 
+  <section class="wrap" id="plugins">
+    <p class="eyebrow">Curated integrations</p>
+    <h2>Choose the capability. Keep control of the version.</h2>
+    <p class="section-note">
+      Eleven bundled skills include UI UX Pro Max and an Understand Anything bridge.
+      Add Playwright MCP for browser work or Context7 MCP for library documentation,
+      with visible sources, prerequisites, and access requirements.
+    </p>
+    <div class="engines">
+      <div class="engine">
+        <div class="engine__name">Discover</div>
+        <div><p class="engine__what"><code>wondev plugins catalog</code></p>
+          <p class="engine__who">Inspect what an integration does and which permissions or runtimes it needs.</p></div>
+      </div>
+      <div class="engine">
+        <div class="engine__name">Pin &amp; select</div>
+        <div><p class="engine__what"><code>wondev plugins pin playwright</code></p>
+          <p class="engine__who">Record an exact version. New pins start disabled; enable only what you want in the export.</p></div>
+      </div>
+      <div class="engine">
+        <div class="engine__name">Review &amp; export</div>
+        <div><p class="engine__what"><code>wondev plugins export --agent codex</code></p>
+          <p class="engine__who">Review Codex TOML or Claude/generic MCP JSON, then apply it using your host's configuration workflow.</p></div>
+      </div>
+    </div>
+    <p class="section-note">
+      <code>plugins check --online</code> reports newer registry releases without changing
+      your pins. Catalog metadata checks are not a security guarantee. Host installation
+      and activation remain explicit; the full Understand Anything runtime is separate.
+      <a href="https://github.com/wondping0/wondev/blob/main/docs/plugins.md">Read the plugin guide →</a>
+    </p>
+  </section>
+
+  <section class="wrap" id="upgrades">
+    <h2>Bring an existing project along</h2>
+    <p class="section-note">Upgrade, share, and migrate with a clear view of what will change.</p>
+    <div class="guards">
+      <div class="guard"><h3>Windows-friendly checks</h3><p>Markdown line-ending changes pass. Real edits still block overwrites, and binary resources remain byte-exact.</p></div>
+      <div class="guard"><h3>Skills after adoption</h3><p><code>skills install bundled:understand-anything</code> adds the selected skill without initializing your project again.</p></div>
+      <div class="guard"><h3>Visible Git distribution</h3><p><code>doctor --git</code> explains ignored and untracked output. <code>check --git</code> can gate distribution in CI.</p></div>
+      <div class="guard"><h3>One active memory source</h3><p><code>vault reconcile knowledge</code> previews both copies, titles, conflicts and links before an explicit migration with backups.</p></div>
+    </div>
+    <p class="section-note">Map service roots in a mixed workspace and see which languages and relationships are not covered.
+      <a href="https://github.com/wondping0/wondev/blob/main/docs/upgrades.md">See upgrade and migration workflows →</a></p>
+  </section>
+
   <section class="wrap" id="commands">
     <h2>Commands</h2>
-    <p class="section-note">Nine, and each earns its place.</p>
+    <p class="section-note">Start small. Inspect before changing a shared project.</p>
     <div class="rows">
       <div class="row"><div class="row__cmd">init</div><div class="row__desc">Scaffold <code>.wondev/</code> with eleven skills, including UI UX Pro Max and an Understand Anything integration</div></div>
       <div class="row"><div class="row__cmd">agent check</div><div class="row__desc">Inspect host hints, rules, skill prerequisites and generated-output drift</div></div>
       <div class="row"><div class="row__cmd">skills enable / disable</div><div class="row__desc">Change active skills while preserving application memory and authored sources</div></div>
+      <div class="row"><div class="row__cmd">plugins catalog / check</div><div class="row__desc">Browse curated integrations and explicitly check registry releases with <code>--online</code></div></div>
+      <div class="row"><div class="row__cmd">vault reconcile</div><div class="row__desc">Review legacy memory copies and resolve conflicts before switching the active source</div></div>
+      <div class="row"><div class="row__cmd">map</div><div class="row__desc">Refresh observed JS/TS structure and report service, language and relationship coverage</div></div>
       <div class="row"><div class="row__cmd">build</div><div class="row__desc">Compile to every enabled target</div></div>
       <div class="row"><div class="row__cmd">watch</div><div class="row__desc">Rebuild as you edit</div></div>
       <div class="row"><div class="row__cmd">check</div><div class="row__desc">Validate and detect drift — exits 1, so CI catches it</div></div>
@@ -603,16 +655,16 @@ footer a:hover { color: var(--ink); }
         <p>A manifest naming a path outside the project is rejected outright. wondev never writes one.</p>
       </div>
       <div class="guard">
-        <div class="guard__head"><span class="guard__mark">✓</span><h3>Nothing leaves the machine</h3></div>
-        <p>No process execution, no telemetry, no postinstall script. One runtime dependency.</p>
+        <div class="guard__head"><span class="guard__mark">✓</span><h3>Local by default</h3></div>
+        <p>Build and context checks need no AI service. Registry access is explicit, with no telemetry or postinstall activation.</p>
       </div>
     </div>
 
     <div class="stats">
       <div class="stat"><div class="stat__n">12</div><div class="stat__l">agents built in</div></div>
-      <div class="stat"><div class="stat__n">191</div><div class="stat__l">tests</div></div>
-      <div class="stat"><div class="stat__n">82<span style="font-size:0.55em">ms</span></div><div class="stat__l">to compile 886 files</div></div>
-      <div class="stat"><div class="stat__n">1</div><div class="stat__l">runtime dependency</div></div>
+      <div class="stat"><div class="stat__n">500+</div><div class="stat__l">behavior tests</div></div>
+      <div class="stat"><div class="stat__n">11</div><div class="stat__l">bundled skills</div></div>
+      <div class="stat"><div class="stat__n">2</div><div class="stat__l">optional MCP integrations</div></div>
     </div>
   </section>
 

@@ -1,6 +1,6 @@
 {
   "name": "wondev",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Write your AI agent knowledge once. Compile it to every agent's config format.",
   "keywords": [
     "ai",
@@ -45,6 +45,8 @@
     "README.md",
     "LICENSE",
     "docs/base-skills.md",
+    "docs/upgrades.md",
+    "docs/plugins.md",
     "vendor-skills.lock.json"
   ],
   "scripts": {
@@ -55,7 +57,7 @@
     "test:coverage": "vitest run --coverage",
     "test:package": "node scripts/smoke-package.mjs",
     "test:upgrade": "node scripts/smoke-upgrade.mjs",
-    "test:upgrade:previous": "node scripts/smoke-upgrade.mjs --from 1.3.0",
+    "test:upgrade:previous": "node scripts/smoke-upgrade.mjs --from 1.4.0",
     "verify": "npm run test:vendor && npm run typecheck && npm run build && npm run test:coverage",
     "prepublishOnly": "npm run verify",
     "test:vendor": "node scripts/vendor-skills.mjs --check"
