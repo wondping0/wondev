@@ -124,7 +124,7 @@ async function checkProject(root: string): Promise<Finding[]> {
     if (entry?.deprecated) findings.push(deprecationFinding(name, entry.deprecated));
   }
 
-  const { issues } = await loadProject(root, config.name);
+  const { issues } = await loadProject(root, config.name, config.sources, config.vault);
   // Name the problems rather than only counting them. Someone runs `doctor` because
   // something is already wrong; answering with a number and the name of a second command
   // spends a round trip to deliver one line of text.

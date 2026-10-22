@@ -29,6 +29,12 @@ ${style.bold('Commands')}
   migrate                  Bring an older .wondev/ up to the current source schema
   upgrade                  Update starter-pack files, preserving your edits
   doctor                   Diagnose this project and report problems
+  agent check              Check host hints, rules, skills, prerequisites and output drift
+  agent use <target>       Switch generated output to one agent target; preserve sources
+  skills catalog           List bundled skills and runtime requirements
+  skills info <name>       Show source, origin, resources and setup instructions
+  skills enable|disable <name>  Change skill selection without deleting sources
+  skills use <profile>     Select a configured skill profile; --all clears it
   targets                  List known targets and what reads them
   context                  Select memory and skills for a task within a token budget
   context eval <cases>     Test memory + skill retrieval under real token budgets
@@ -67,6 +73,7 @@ ${style.bold('Options')}
   --json                   context, memory stale: emit machine-readable output
   --against <evidence>     memory verify: describe the check actually performed
   --profile <name>         build, watch, check, context, list, skills: select a skill profile
+  --agent <name>           agent check: explicitly select the host instead of env hints
   --input <file>           session record/propose: JSON summary or revised memory Markdown
   --review-hash <hash>     session apply: hash printed by session review
   --source <source>        skills update: select a new local: or npm: source/version
@@ -195,6 +202,7 @@ export async function main(argv: string[]): Promise<number> {
       cwd: { type: 'string' },
       targets: { type: 'string' },
       target: { type: 'string' },
+      agent: { type: 'string' },
       all: { type: 'boolean' },
       force: { type: 'boolean' },
       'dry-run': { type: 'boolean' },
@@ -240,6 +248,13 @@ export async function main(argv: string[]): Promise<number> {
   const root = path.resolve(values.cwd ?? process.cwd());
 
   switch (command) {
+    case 'agent': {
+      const { runAgentCheck, runSelection } = await import('./commands/agent.js');
+      if (positionals[1] === 'check') await runAgentCheck(root, { agent: values.agent, profile: values.profile, json: values.json });
+      else if (positionals[1] === 'use' && positionals[2]) await runSelection(root, 'agent', positionals[2], { dryRun: values['dry-run'], noBuild: values['no-build'] });
+      else throw new WondevError('Usage: wondev agent check [--agent <target>] [--json] | agent use <target> [--dry-run]');
+      return process.exitCode === 1 ? 1 : 0;
+    }
     case 'session': {
       const { runSession } = await import('./commands/session.js');
       await runSession(root, positionals.slice(1), { input: values.input, reviewHash: values['review-hash'], noBuild: values['no-build'] === true, files: values.files?.split(',').map((f) => f.trim()).filter(Boolean) });
@@ -268,6 +283,17 @@ export async function main(argv: string[]): Promise<number> {
       return 0;
     }
     case 'skills': {
+      const { runSkillCatalog, runSkillInfo } = await import('./commands/skills.js');
+      const action = positionals[1];
+      if (action === 'catalog') { await runSkillCatalog(values.json); return 0; }
+      if (action === 'info' && positionals[2]) { await runSkillInfo(root, positionals[2], values.json); return 0; }
+      if (['enable', 'disable', 'use'].includes(action ?? '')) {
+        const { runSelection } = await import('./commands/agent.js');
+        const name = action === 'use' && values.all ? '*' : positionals[2];
+        if (!name) throw new WondevError('Usage: wondev skills enable|disable <name> | skills use <profile> | skills use --all');
+        await runSelection(root, action === 'use' ? 'profile' : action as 'enable' | 'disable', name, { dryRun: values['dry-run'], noBuild: values['no-build'] });
+        return 0;
+      }
       if (['install', 'update', 'sync'].includes(positionals[1] ?? '')) {
         const { runPacks } = await import('./commands/packs.js');
         await runPacks(root, positionals[1]!, positionals[2], { dryRun: values['dry-run'] === true, source: values.source, noBuild: values['no-build'] === true });

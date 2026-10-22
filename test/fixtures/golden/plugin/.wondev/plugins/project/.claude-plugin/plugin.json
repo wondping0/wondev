@@ -1,0 +1,6 @@
+{
+  "name": "wondev-project-skills",
+  "version": "1.0.0",
+  "description": "Reusable skills for fixture-project, compiled by wondev.",
+  "skills": "./skills/"
+}

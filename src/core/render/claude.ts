@@ -2,6 +2,7 @@ import type { ClaudeTarget, MemoryDoc, Project, RenderedFile } from '../model.js
 import { ALL_SECTIONS } from '../model.js';
 import { stringifyFrontmatter } from '../frontmatter.js';
 import { flatSlug, memorySection, onDemandMemoryIndex } from './shared.js';
+import { renderSkills } from './skills.js';
 
 /**
  * Claude Code's native layout.
@@ -20,32 +21,7 @@ export function renderClaude(project: Project, target: ClaudeTarget): RenderedFi
     mode: 'region',
   });
 
-  const skillsDir = target.skills.replace(/\/+$/, '');
-  for (const skill of want.has('skills') ? project.skills : []) {
-    const data: Record<string, unknown> = {
-      ...skill.frontmatter,
-      name: skill.name,
-      description: skill.description,
-    };
-    files.push({
-      path: `${skillsDir}/${skill.name}/SKILL.md`,
-      content: stringifyFrontmatter(data, skill.body),
-      mode: 'whole',
-    });
-
-    // This engine is the only one with somewhere real to put these. Claude Code reads them
-    // when SKILL.md points at them, which is exactly the on-demand behaviour they exist for.
-    for (const att of skill.attachments) {
-      files.push({
-        path: `${skillsDir}/${skill.name}/${att.relPath}`,
-        content: att.content,
-        mode: 'whole',
-        raw: true,
-        ...(att.encoding ? { encoding: att.encoding } : {}),
-        ...(att.executable ? { executable: true } : {}),
-      });
-    }
-  }
+  if (want.has('skills')) files.push(...renderSkills(project.skills, target.skills));
 
   // Only when the target names a location. A custom claude target written before agents
   // existed has no `agents` path, and inventing one would write into a directory its author

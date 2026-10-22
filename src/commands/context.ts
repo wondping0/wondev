@@ -30,6 +30,7 @@ export async function loadContext(root: string, profile?: string): Promise<Proje
     project.skills = project.skills.filter((skill) => matchesPatterns(skill.name, settings.skills));
   }
   const targets = resolveTargets(config);
+  project.skills = project.skills.filter((skill) => !config.disabledSkills?.includes(skill.name));
   return { root, config, project, targets, issues };
 }
 

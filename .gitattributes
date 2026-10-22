@@ -5,3 +5,10 @@
 *.png binary
 *.jpg binary
 *.gz binary
+# Vendored upstream resources retain their original bytes for pinned checksum verification.
+templates/skills/ui-ux-pro-max/data/** -text
+templates/skills/ui-ux-pro-max/scripts/** -text
+templates/skills/webapp-testing/examples/** -text
+templates/skills/webapp-testing/scripts/** -text
+# Keep upstream whitespace too; vendor-skills.lock.json verifies the exact original.
+templates/skills/ui-ux-pro-max/scripts/design_system.py whitespace=-blank-at-eol

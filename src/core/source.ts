@@ -295,7 +295,7 @@ async function loadAttachments(
     .filter((f) => f !== 'SKILL.md')
     .sort();
 
-  const hidden = (f: string): boolean => f.endsWith('.new') || f.split('/').some((part) => part.startsWith('.'));
+  const hidden = (f: string): boolean => f.endsWith('.new') || /\.py[co]$/.test(f) || f.split('/').some((part) => part.startsWith('.') || part === '__pycache__');
   const skipped = rel.filter(hidden);
   const keep = rel.filter((f) => !hidden(f));
 

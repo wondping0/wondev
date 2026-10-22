@@ -104,6 +104,8 @@ export interface WondevConfig {
   vault?: string;
   profiles?: Record<string, SkillProfile>;
   profile?: string;
+  /** Disabled skills remain authored sources and can be enabled again. */
+  disabledSkills?: string[];
 }
 
 export function wondevDir(root: string): string {
@@ -173,6 +175,13 @@ export async function loadConfig(root: string): Promise<WondevConfig> {
   if (obj['profile'] !== undefined) {
     if (typeof obj['profile'] !== 'string' || !Object.hasOwn(config.profiles ?? {}, obj['profile'])) throw new WondevError('profile must name a configured profile.');
     config.profile = obj['profile'];
+  }
+  if (obj['disabledSkills'] !== undefined) {
+    const disabled = obj['disabledSkills'];
+    if (!Array.isArray(disabled) || disabled.some((s) => typeof s !== 'string' || !/^[a-z0-9][a-z0-9-]*$/.test(s))) {
+      throw new WondevError('disabledSkills must be a list of skill names.');
+    }
+    config.disabledSkills = [...new Set(disabled as string[])];
   }
   const writtenBy = typeof obj['wondevVersion'] === 'string' ? obj['wondevVersion'] : undefined;
   if (writtenBy) config.wondevVersion = writtenBy;
@@ -347,6 +356,13 @@ export function validateTarget(name: string, raw: unknown): Target {
   };
 
   switch (engine) {
+    case 'skill-plugin': {
+      const pluginName = obj['name'];
+      const version = obj['version'];
+      if (typeof pluginName !== 'string' || pluginName.length > 64 || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(pluginName)) throw new WondevError(`customTargets.${name}: plugin name must be kebab-case, up to 64 characters.`);
+      if (typeof version !== 'string' || !/^\d+\.\d+\.\d+$/.test(version)) throw new WondevError(`customTargets.${name}: plugin version must be an exact X.Y.Z version.`);
+      return { engine, path: requirePath('path'), name: pluginName, version };
+    }
     case 'single-file': {
       const mode = obj['mode'];
       if (mode !== undefined && mode !== 'region' && mode !== 'whole') {
@@ -359,6 +375,7 @@ export function validateTarget(name: string, raw: unknown): Target {
       };
       const singleInclude = readInclude(name, obj['include']);
       if (singleInclude) single.include = singleInclude;
+      if (obj['skills'] !== undefined) single.skills = requirePath('skills');
       return single;
     }
     case 'rule-dir': {
@@ -400,7 +417,7 @@ export function validateTarget(name: string, raw: unknown): Target {
     default:
       throw new WondevError(
         `customTargets.${name}: unknown engine "${String(engine)}".`,
-        'Valid engines: single-file, rule-dir, claude, html.',
+        'Valid engines: single-file, rule-dir, claude, html, skill-plugin.',
       );
   }
 }

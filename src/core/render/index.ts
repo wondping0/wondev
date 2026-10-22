@@ -7,6 +7,7 @@ import { renderClaude } from './claude.js';
 import { renderHtml } from './html.js';
 import { renderRuleDir } from './rule-dir.js';
 import { renderSingleFile } from './single-file.js';
+import { renderSkillPlugin } from './skill-plugin.js';
 import { flattenProject } from './shared.js';
 
 /**
@@ -23,6 +24,9 @@ export function renderTarget(
   let files: RenderedFile[];
 
   switch (target.engine) {
+    case 'skill-plugin':
+      files = renderSkillPlugin(project, target);
+      break;
     case 'single-file':
       files = renderSingleFile(project, target, flattened);
       break;

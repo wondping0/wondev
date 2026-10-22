@@ -30,6 +30,30 @@ try {
   assert.equal((await npm(['exec', '--offline', '--', 'wondev', '--version'], app)).trim(), version);
   assert.match(await fs.readFile(path.join(installed, 'docs/knowledge.md'), 'utf8'), /Active vaults/);
   await run('init', '--vault', 'knowledge', '--targets', 'claude,agents');
+  assert.equal(JSON.parse(await run('skills', 'catalog', '--json')).length, 11);
+  const uiSkill = JSON.parse(await run('skills', 'info', 'ui-ux-pro-max', '--json'));
+  assert.equal(uiSkill.path, 'knowledge/skills/ui-ux-pro-max/SKILL.md');
+  const uiScript = path.join(app, '.agents/skills/ui-ux-pro-max/scripts/search.py');
+  assert.deepEqual(await fs.readFile(uiScript), await fs.readFile(path.join(installed, 'templates/skills/ui-ux-pro-max/scripts/search.py')));
+  let python;
+  for (const [command, prefix] of [['python3', []], ['python', []], ['py', ['-3']]]) {
+    try {
+      const result = await execute(command, [...prefix, '--version'], { windowsHide: true, timeout: 5000 });
+      if (/Python 3\./.test(result.stdout + result.stderr)) { python = { command, prefix }; break; }
+    } catch { /* try the next platform interpreter */ }
+  }
+  assert(python, 'Package smoke requires Python 3 to exercise the shipped UI UX scripts');
+  const search = JSON.parse((await execute(python.command, [...python.prefix, '-B', uiScript, 'keyboard focus', '--domain', 'ux', '--json'], { cwd: app, windowsHide: true })).stdout);
+  assert(search.count > 0);
+  assert.equal(search.domain, 'ux');
+  const generated = JSON.parse((await execute(python.command, [...python.prefix, '-B', uiScript, 'saas dashboard', '--design-system', '--json'], { cwd: app, windowsHide: true })).stdout);
+  assert(generated.design_system);
+  await execute(python.command, [...python.prefix, '-B', path.join(app, '.agents/skills/webapp-testing/scripts/with_server.py'), '--help'], { cwd: app, windowsHide: true });
+  await run('skills', 'disable', 'webapp-testing');
+  await assert.rejects(fs.access(path.join(app, '.agents/skills/webapp-testing/SKILL.md')), { code: 'ENOENT' });
+  await fs.access(path.join(app, 'knowledge/skills/webapp-testing/SKILL.md'));
+  await run('skills', 'enable', 'webapp-testing');
+  assert.equal(JSON.parse(await run('agent', 'check', '--agent', 'codex', '--json')).currentAgent.enabled, true);
   assert.match(await fs.readFile(path.join(app, '.claude/commands/learn.md'), 'utf8'), /Learn from this development task/);
   assert.match(await fs.readFile(path.join(app, '.wondev/.gitignore'), 'utf8'), /^\.lock$/m);
   assert.match(await fs.readFile(path.join(app, '.wondev/.gitignore'), 'utf8'), /^skill-updates\/$/m);
@@ -79,6 +103,13 @@ try {
   assert.equal(evaluation[0].passed, true);
   await run('check', '--freshness', 'stale');
   await assert.rejects(run('check', '--freshness', 'strict'), /unverified/);
+  await run('agent', 'use', 'plugin');
+  for (const manifest of ['plugin.json', '.claude-plugin/plugin.json', '.codex-plugin/plugin.json']) {
+    assert.equal(JSON.parse(await fs.readFile(path.join(app, '.wondev/plugins/project', manifest), 'utf8')).name, 'wondev-project-skills');
+  }
+  await fs.access(path.join(app, '.wondev/plugins/project/skills/ui-ux-pro-max/data/ux-guidelines.csv'));
+  await run('agent', 'use', 'codex');
+  await run('check');
   console.log(`Packed wondev ${version}: executable, vault, context, evidence, skills, sessions, application map, reviewed learning, context evaluation, and freshness gates passed.`);
 } finally {
   const relative = path.relative(os.tmpdir(), temp);
