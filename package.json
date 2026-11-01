@@ -63,7 +63,7 @@
     "test:vendor": "node scripts/vendor-skills.mjs --check"
   },
   "dependencies": {
-    "@babel/parser": "^7.29.9",
+    "@babel/parser": "^8.0.8",
     "yaml": "^2.6.1"
   },
   "devDependencies": {
