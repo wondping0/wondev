@@ -11,6 +11,21 @@ a patch, because it makes `wondev check` fail in every project that upgrades.
 
 ## [Unreleased]
 
+### Added
+
+- Four base skills, bringing the bundle to fifteen: `motion-dev` (Motion / motion.dev),
+  `animejs` (Anime.js v4, including v3 → v4 differences), `shadcn-charts` (shadcn/ui
+  charts over Recharts), and `agentic-implementation` — rule points for building AI and
+  agent features with a dated knowledge base in `references/` covering composition
+  patterns, the current technology map (tool calling, MCP, skills, structured output,
+  caching, memory, agent protocols), and safety, evaluation and observability.
+  All four are written by wondev under MIT, contain no upstream code, install no
+  dependency, and load on demand. Existing projects receive them through
+  `wondev upgrade` or `wondev skills install bundled:<name>`.
+
+The starter README mentions the new skills, so projects with tracked starters see a
+template update. This is a MINOR change under the versioning contract.
+
 ## [1.5.0] - 2026-10-22
 
 ### Fixed

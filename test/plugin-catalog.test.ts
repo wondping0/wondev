@@ -12,7 +12,7 @@ function metadata(version = entry.version!) { return { name: entry.package, vers
 
 it('offers verifiable catalog metadata offline and separates bridge skills from runtime packages', async () => {
   const fetcher = vi.fn(); vi.stubGlobal('fetch', fetcher);
-  expect(PLUGIN_CATALOG).toHaveLength(13);
+  expect(PLUGIN_CATALOG).toHaveLength(17);
   expect(catalogPlugin('understand-anything')).toMatchObject({ kind: 'bundled-skill', requires: expect.stringContaining('separate upstream') });
   await silence(() => main(['plugins', 'catalog', '--json']));
   await silence(() => runPlugins(root, 'catalog'));

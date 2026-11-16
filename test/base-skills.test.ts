@@ -15,8 +15,9 @@ it('ships valid on-demand skills with actual resources and distinct task trigger
   expect(project.skills.map((s) => s.name)).toEqual(BASE_SKILLS.map((s) => s.name).sort());
   for (const skill of project.skills) {
     expect(validateSkill(skill), skill.name).toEqual([]);
-    if (['ui-ux-pro-max', 'understand-anything', 'webapp-testing', 'skill-discovery', 'context-maintenance'].includes(skill.name)) expect(skill.inline).toBe(false);
+    if (['ui-ux-pro-max', 'understand-anything', 'webapp-testing', 'skill-discovery', 'context-maintenance', 'motion-dev', 'animejs', 'shadcn-charts', 'agentic-implementation'].includes(skill.name)) expect(skill.inline).toBe(false);
   }
+  expect(project.skills.find((s) => s.name === 'agentic-implementation')?.attachments.map((a) => a.relPath)).toEqual(expect.arrayContaining(['references/patterns.md', 'references/technology.md', 'references/safety-and-evals.md']));
   expect(project.skills.find((s) => s.name === 'ui-ux-pro-max')?.attachments.map((a) => a.relPath)).toContain('scripts/design_system.py');
   expect(project.skills.find((s) => s.name === 'understand-anything')?.attachments.map((a) => a.relPath)).toContain('references/upstream-understand.md');
   const results = evaluateTriggers(project, [
@@ -25,7 +26,11 @@ it('ships valid on-demand skills with actual resources and distinct task trigger
     { task: 'Test browser rendering with Playwright screenshots', expected: ['webapp-testing'] },
     { task: 'Find and disable agent skills and plugins', expected: ['skill-discovery'] },
     { task: 'Review stale memory and record development lessons', expected: ['context-maintenance'] },
-    { task: 'Rotate PostgreSQL credentials', expected: [], forbidden: ['ui-ux-pro-max', 'webapp-testing'] },
+    { task: 'Add a Motion layout animation with gestures and springs', expected: ['motion-dev'] },
+    { task: 'Migrate Anime.js timelines and stagger to v4', expected: ['animejs'] },
+    { task: 'Build a bar chart with shadcn ChartContainer and Recharts', expected: ['shadcn-charts'] },
+    { task: 'Design tool calling, MCP servers and evals for an LLM agent', expected: ['agentic-implementation'] },
+    { task: 'Rotate PostgreSQL credentials', expected: [], forbidden: ['ui-ux-pro-max', 'webapp-testing', 'motion-dev', 'animejs', 'shadcn-charts', 'agentic-implementation'] },
   ]);
   expect(results.filter((r) => !r.passed)).toEqual([]);
 });

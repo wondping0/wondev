@@ -4,7 +4,7 @@ After `wondev adopt`, add any bundled skill with `wondev skills install bundled:
 or explicitly select `bundled:all`. This does not require starter provenance or another
 init. See [upgrade workflows](upgrades.md) and [curated plugin controls](plugins.md).
 
-`wondev init` bundles eleven skills locally. They are procedures and resources loaded
+`wondev init` bundles fifteen skills locally. They are procedures and resources loaded
 on demand; they do not train a model, install OS tools, or activate host plugins.
 Use `wondev upgrade --dry-run`, then `wondev upgrade` in an application with tracked starters.
 Template provenance preserves user edits and offers incoming changes for review.
@@ -16,7 +16,18 @@ Template provenance preserves user edits and offers incoming changes for review.
 | webapp-testing | Adapted instructions, Anthropic Python examples and server helper | Existing browser runner, or Python Playwright plus browser |
 | skill-discovery | Find, assess and switch skills for a host | Agent with repository access |
 | context-maintenance | Review memory, preserve evidence and capture scoped lessons | Wondev project |
+| motion-dev | Motion (motion.dev) entry points, React and vanilla patterns, performance and reduced-motion rules, common failures | Project using `motion` or legacy `framer-motion` |
+| animejs | Anime.js v4 API shape, v3 → v4 differences, scoping and cleanup in components | Project using `animejs` |
+| shadcn-charts | shadcn/ui chart composition over Recharts, `ChartConfig`, colour-token syntax, sizing and accessibility rules | React project with shadcn/ui and Recharts |
+| agentic-implementation | Rules for AI/agent features plus references on patterns, the technology map, and safety/evals | Agent with repository access; vendor documentation for version-specific details |
 | debugging, writing-tests, code-review, planning-work, git-workflow, verify-before-done | Existing development procedures | Project's normal tools |
+
+The three library skills and `agentic-implementation` are written by wondev (MIT) and are
+not affiliated with or vendored from those projects. They contain no upstream code and
+install no dependency. They record durable patterns and point to official documentation;
+the installed library version and vendor documentation take precedence. The
+`agentic-implementation` references are dated and deliberately omit model names, prices
+and limits. Projects that do not use a library can run `wondev skills disable <name>`.
 
 The UI UX data and scripts are from [Next Level Builder](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill)
 at `623a9a9037d006ea727f8213f084d02a6b6f11b5` (MIT). The Understand Anything procedure
