@@ -1,6 +1,6 @@
 # Curated skills and plugin controls
 
-Wondev's catalog groups fifteen bundled skills with two optional MCP integrations:
+Wondev's catalog groups twenty-one bundled skills with two optional MCP integrations:
 [Playwright MCP](https://github.com/microsoft/playwright-mcp) for browser work, and
 [Context7 MCP](https://context7.com/docs/resources/all-clients) for library documentation.
 The catalog identifies each distribution kind; MCP servers, portable skills, and native

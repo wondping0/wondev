@@ -284,6 +284,119 @@
           "sha256": "b0dcf4918935b795f4eda9821579b9902119235ff4447f687a30286e7d0925fd"
         }
       ]
+    },
+    {
+      "name": "antislop",
+      "repository": "https://github.com/miqdadbadjuber/anti-slop",
+      "commit": "7f6a03df2931c12cb244dc4ab14ee4866b0ac2ba",
+      "license": "MIT",
+      "files": [
+        {
+          "path": "templates/skills/antislop/LICENSE.txt",
+          "upstreamPath": "LICENSE",
+          "sha256": "9fd83fb1fda52ca0094b96e2ed5a3d6c42a81b95a6c6326553f5bbe570f443de"
+        },
+        {
+          "path": "templates/skills/antislop-code/LICENSE.txt",
+          "upstreamPath": "LICENSE",
+          "sha256": "9fd83fb1fda52ca0094b96e2ed5a3d6c42a81b95a6c6326553f5bbe570f443de"
+        },
+        {
+          "path": "templates/skills/antislop-copywriting/LICENSE.txt",
+          "upstreamPath": "LICENSE",
+          "sha256": "9fd83fb1fda52ca0094b96e2ed5a3d6c42a81b95a6c6326553f5bbe570f443de"
+        },
+        {
+          "path": "templates/skills/antislop-human/LICENSE.txt",
+          "upstreamPath": "LICENSE",
+          "sha256": "9fd83fb1fda52ca0094b96e2ed5a3d6c42a81b95a6c6326553f5bbe570f443de"
+        },
+        {
+          "path": "templates/skills/antislop-layoutmobile/LICENSE.txt",
+          "upstreamPath": "LICENSE",
+          "sha256": "9fd83fb1fda52ca0094b96e2ed5a3d6c42a81b95a6c6326553f5bbe570f443de"
+        },
+        {
+          "path": "templates/skills/antislop-ui/LICENSE.txt",
+          "upstreamPath": "LICENSE",
+          "sha256": "9fd83fb1fda52ca0094b96e2ed5a3d6c42a81b95a6c6326553f5bbe570f443de"
+        },
+        {
+          "path": "templates/skills/antislop-code/SKILL.md",
+          "upstreamPath": "skills/antislop-code/SKILL.md",
+          "sha256": "cac8f34af374f085900fd9b211a92fdfb387f63826571e1221cfb927fb31a5ca"
+        },
+        {
+          "path": "templates/skills/antislop-copywriting/SKILL.md",
+          "upstreamPath": "skills/antislop-copywriting/SKILL.md",
+          "sha256": "568efd8c763ce95a6ea123288e80f9a1ffdf1883143c1fad6e546a45a17659fc"
+        },
+        {
+          "path": "templates/skills/antislop-human/LICENSE-web-quality-skills",
+          "upstreamPath": "skills/antislop-human/LICENSE-web-quality-skills",
+          "sha256": "c122223ac43e86421958e18623979942c21b642951e2e3736dcb63eff13587c3"
+        },
+        {
+          "path": "templates/skills/antislop-human/SKILL.md",
+          "upstreamPath": "skills/antislop-human/SKILL.md",
+          "sha256": "6cdd6f26d4f77ed629abe269fc423863edd063347c38fa6ce990a77914c1d8e6"
+        },
+        {
+          "path": "templates/skills/antislop-human/contrast-check.py",
+          "upstreamPath": "skills/antislop-human/contrast-check.py",
+          "sha256": "393e6433d120632aa11184792a16cd7b325924dbc9993477825d9aa67fdbfe6e"
+        },
+        {
+          "path": "templates/skills/antislop-human/contrast-mcp.py",
+          "upstreamPath": "skills/antislop-human/contrast-mcp.py",
+          "sha256": "e2cf4b41da92d1e106d39e169ae335017dd059215bf58c894268481a6aa075e6"
+        },
+        {
+          "path": "templates/skills/antislop-human/references/A11Y-PATTERNS.md",
+          "upstreamPath": "skills/antislop-human/references/A11Y-PATTERNS.md",
+          "sha256": "4cb6276a237fbe05616b53688075461732454365eb7674d732f7197dddb14fff"
+        },
+        {
+          "path": "templates/skills/antislop-human/references/WCAG.md",
+          "upstreamPath": "skills/antislop-human/references/WCAG.md",
+          "sha256": "409ac9e24007f09f3704f890585c880cdd66780e9f14274b1a0e0c4557672330"
+        },
+        {
+          "path": "templates/skills/antislop-layoutmobile/SKILL.md",
+          "upstreamPath": "skills/antislop-layoutmobile/SKILL.md",
+          "sha256": "205c8e0785b4baa5ea53815526ff11e0225c53a4d8c97c3cfa29f2f58a1ed7ce"
+        },
+        {
+          "path": "templates/skills/antislop-ui/LICENSE-web-quality-skills",
+          "upstreamPath": "skills/antislop-ui/LICENSE-web-quality-skills",
+          "sha256": "c122223ac43e86421958e18623979942c21b642951e2e3736dcb63eff13587c3"
+        },
+        {
+          "path": "templates/skills/antislop-ui/SKILL.md",
+          "upstreamPath": "skills/antislop-ui/SKILL.md",
+          "sha256": "31d2cafe672545cb21d67d2d609b0809854ca88705af05c3867db651bd67aa82"
+        },
+        {
+          "path": "templates/skills/antislop-ui/references/CORE-WEB-VITALS.md",
+          "upstreamPath": "skills/antislop-ui/references/CORE-WEB-VITALS.md",
+          "sha256": "782bc99ba1fc68e25aabb396967468ec8cb7ea33cd681bccf4b7b04a679acf23"
+        },
+        {
+          "path": "templates/skills/antislop-ui/references/WEB-BASELINE.md",
+          "upstreamPath": "skills/antislop-ui/references/WEB-BASELINE.md",
+          "sha256": "f9a4c8d71a6e2ddf5ad0e46a11553eb188617c36f0bfb331e3d3930aecf772a2"
+        },
+        {
+          "path": "templates/skills/antislop/SKILL.md",
+          "upstreamPath": "skills/antislop/SKILL.md",
+          "sha256": "2cbdc8c7b5acca92d9edf2406663502eb801f8abe62681f21ec97257e722c44b"
+        },
+        {
+          "path": "templates/skills/antislop/VERSION",
+          "upstreamPath": "skills/antislop/VERSION",
+          "sha256": "c651719e893b26156d0aa99ba8b9e0ed125a1a296d6553c2a54718bfc9ee6430"
+        }
+      ]
     }
   ]
 }

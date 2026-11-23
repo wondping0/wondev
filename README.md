@@ -79,8 +79,9 @@ npx wondev init          # scaffold .wondev/ with a starter pack, then build
 npx wondev check         # validate and detect drift
 ```
 
-`init` writes fifteen on-demand skills: **UI UX Pro Max**, an **Understand Anything
-integration bridge**, **webapp-testing**, **skill-discovery**, **context-maintenance**,
+`init` writes twenty-one on-demand skills: **UI UX Pro Max**, the six **antislop**
+skills (rules against generic AI output in UI, copy, layout, accessibility and code
+comments), an **Understand Anything integration bridge**, **webapp-testing**, **skill-discovery**, **context-maintenance**,
 library guides for **Motion** (`motion-dev`), **Anime.js** (`animejs`) and **shadcn/ui
 charts** (`shadcn-charts`), **agentic-implementation** (rules and a dated knowledge base
 for building AI/agent features), and `debugging`, `writing-tests`, `code-review`, `planning-work`, `git-workflow`,
@@ -110,7 +111,7 @@ npx wondev skills install bundled:ui-ux-pro-max --dry-run
 
 ### Curated plugins, explicit control
 
-Browse fifteen bundled skills plus **Playwright MCP** and **Context7 MCP**, with upstream
+Browse twenty-one bundled skills plus **Playwright MCP** and **Context7 MCP**, with upstream
 sources, access requirements, prerequisites, and the date metadata was checked. Pin an
 exact version, choose what enters your host configuration, and check for newer releases
 without silently updating or activating anything.

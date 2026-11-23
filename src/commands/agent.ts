@@ -26,7 +26,7 @@ export async function inspectAgent(root: string, options: { agent?: string; prof
   }
   const loaded = await loadProject(root, ctx.config.name, ctx.config.sources, ctx.config.vault);
   const active = new Set(ctx.project.skills.map((s) => s.name));
-  const python = active.has('ui-ux-pro-max') || active.has('webapp-testing') ? await (options.python ?? pythonRuntime)() : null;
+  const python = active.has('ui-ux-pro-max') || active.has('webapp-testing') || active.has('antislop-human') ? await (options.python ?? pythonRuntime)() : null;
   const upstream = active.has('understand-anything') ? await understandRuntime(root, options.env) : undefined;
   const { files, owners } = await projectOutput(ctx, ctx.targets);
   const manifest = await loadManifest(root);
@@ -76,7 +76,7 @@ export async function runAgentCheck(root: string, options: { agent?: string; pro
     info(`Rules: ${report.rules.length}; output changes: ${report.output.changes.length}; retired files: ${report.output.retired.length}`);
     for (const rule of report.rules) info(`  rule ${rule.path}: ${rule.always ? 'always' : 'on demand'}${rule.globs.length ? `; paths ${rule.globs.join(', ')}` : ''}`);
     for (const skill of report.skills) info(`  ${skill.status.padEnd(15)} ${skill.name}: ${skill.requires}`);
-    if (report.skills.some((s) => s.status === 'enabled' && ['ui-ux-pro-max', 'webapp-testing'].includes(s.name))) info(`Python: ${report.prerequisites.python ?? 'missing; install Python 3 for the bundled scripts'}`);
+    if (report.skills.some((s) => s.status === 'enabled' && ['ui-ux-pro-max', 'webapp-testing', 'antislop-human'].includes(s.name))) info(`Python: ${report.prerequisites.python ?? 'missing; install Python 3 for the bundled scripts'}`);
     if (report.prerequisites.understandAnything) info(`Understand Anything: ${report.prerequisites.understandAnything.status}; wondev skills info understand-anything shows setup instructions.`);
     if (report.prerequisites.browser) info(`Browser: ${report.prerequisites.browser}`);
     for (const plugin of report.plugins) info(`Plugin ${plugin.path}: ${plugin.status}`);

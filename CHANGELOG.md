@@ -13,7 +13,13 @@ a patch, because it makes `wondev check` fail in every project that upgrades.
 
 ### Added
 
-- Four base skills, bringing the bundle to fifteen: `motion-dev` (Motion / motion.dev),
+- Six antislop skills (`antislop`, `antislop-ui`, `antislop-copywriting`,
+  `antislop-layoutmobile`, `antislop-human`, `antislop-code`) vendored unmodified from
+  [anti-slop](https://github.com/miqdadbadjuber/anti-slop) 3.2.32 at a pinned commit,
+  with the upstream MIT license in each skill and per-file checksums in
+  `vendor-skills.lock.json`. `agent check` reports Python when `antislop-human` is
+  enabled. `scripts/vendor-skills.mjs` supports multi-skill sources and `--only <source>`.
+- Four wondev-authored base skills, bringing the bundle to twenty-one: `motion-dev` (Motion / motion.dev),
   `animejs` (Anime.js v4, including v3 → v4 differences), `shadcn-charts` (shadcn/ui
   charts over Recharts), and `agentic-implementation` — rule points for building AI and
   agent features with a dated knowledge base in `references/` covering composition

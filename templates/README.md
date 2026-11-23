@@ -64,7 +64,8 @@ wondev package does not reset them. With an active vault, use its configured sou
 
 The base skills include UI UX Pro Max (bundled Python search and data), an Understand
 Anything integration bridge, webapp-testing (Python Playwright examples), skill-discovery,
-and context-maintenance, alongside the six development procedures. Library guides for
+context-maintenance, and the six antislop skills (rules against generic AI output in UI,
+copy, layout, accessibility and code comments), alongside the six development procedures. Library guides for
 Motion, Anime.js and shadcn/ui charts, and agentic-implementation (rules and a dated
 knowledge base for AI/agent features), apply only when the task matches; disable the
 ones this project does not use. They load on demand.

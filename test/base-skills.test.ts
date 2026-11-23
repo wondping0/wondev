@@ -20,7 +20,11 @@ it('ships valid on-demand skills with actual resources and distinct task trigger
   expect(project.skills.find((s) => s.name === 'agentic-implementation')?.attachments.map((a) => a.relPath)).toEqual(expect.arrayContaining(['references/patterns.md', 'references/technology.md', 'references/safety-and-evals.md']));
   expect(project.skills.find((s) => s.name === 'ui-ux-pro-max')?.attachments.map((a) => a.relPath)).toContain('scripts/design_system.py');
   expect(project.skills.find((s) => s.name === 'understand-anything')?.attachments.map((a) => a.relPath)).toContain('references/upstream-understand.md');
+  expect(project.skills.find((s) => s.name === 'antislop')?.attachments.map((a) => a.relPath)).toContain('VERSION');
+  expect(project.skills.find((s) => s.name === 'antislop-human')?.attachments.map((a) => a.relPath)).toEqual(expect.arrayContaining(['contrast-check.py', 'references/WCAG.md', 'LICENSE-web-quality-skills']));
   const results = evaluateTriggers(project, [
+    { task: 'Remove generic AI-slop comments from this file', expected: ['antislop-code'] },
+    { task: 'Check color contrast, keyboard focus and accessibility states', expected: ['antislop-human'] },
     { task: 'Design responsive typography and palettes', expected: ['ui-ux-pro-max'] },
     { task: 'Map application architecture and component relationships', expected: ['understand-anything'] },
     { task: 'Test browser rendering with Playwright screenshots', expected: ['webapp-testing'] },
