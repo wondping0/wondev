@@ -12,3 +12,5 @@ templates/skills/webapp-testing/examples/** -text
 templates/skills/webapp-testing/scripts/** -text
 # Keep upstream whitespace too; vendor-skills.lock.json verifies the exact original.
 templates/skills/ui-ux-pro-max/scripts/design_system.py whitespace=-blank-at-eol
+templates/skills/antislop/** -text
+templates/skills/antislop-*/** -text

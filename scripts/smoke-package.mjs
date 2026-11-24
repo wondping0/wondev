@@ -30,8 +30,8 @@ try {
   assert.equal((await npm(['exec', '--offline', '--', 'wondev', '--version'], app)).trim(), version);
   assert.match(await fs.readFile(path.join(installed, 'docs/knowledge.md'), 'utf8'), /Active vaults/);
   await run('init', '--vault', 'knowledge', '--targets', 'claude,agents');
-  assert.equal(JSON.parse(await run('skills', 'catalog', '--json')).length, 11);
-  assert.equal(JSON.parse(await run('plugins', 'catalog', '--json')).length, 13);
+  assert.equal(JSON.parse(await run('skills', 'catalog', '--json')).length, 21);
+  assert.equal(JSON.parse(await run('plugins', 'catalog', '--json')).length, 23);
   await fs.access(path.join(installed, 'docs/plugins.md'));
   await fs.access(path.join(installed, 'docs/upgrades.md'));
   await run('plugins', 'pin', 'playwright');

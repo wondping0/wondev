@@ -4,7 +4,7 @@ After `wondev adopt`, add any bundled skill with `wondev skills install bundled:
 or explicitly select `bundled:all`. This does not require starter provenance or another
 init. See [upgrade workflows](upgrades.md) and [curated plugin controls](plugins.md).
 
-`wondev init` bundles eleven skills locally. They are procedures and resources loaded
+`wondev init` bundles twenty-one skills locally. They are procedures and resources loaded
 on demand; they do not train a model, install OS tools, or activate host plugins.
 Use `wondev upgrade --dry-run`, then `wondev upgrade` in an application with tracked starters.
 Template provenance preserves user edits and offers incoming changes for review.
@@ -16,14 +16,38 @@ Template provenance preserves user edits and offers incoming changes for review.
 | webapp-testing | Adapted instructions, Anthropic Python examples and server helper | Existing browser runner, or Python Playwright plus browser |
 | skill-discovery | Find, assess and switch skills for a host | Agent with repository access |
 | context-maintenance | Review memory, preserve evidence and capture scoped lessons | Wondev project |
+| antislop, antislop-ui, antislop-copywriting, antislop-layoutmobile, antislop-human, antislop-code | Unmodified upstream skills from antislop 3.2.32: core rules against generic AI output, plus UI, copy, mobile layout, accessibility (with a contrast checker and references) and code-comment hygiene | Agent with repository access; Python 3 only for the `antislop-human` contrast checker |
+| motion-dev | Motion (motion.dev) entry points, React and vanilla patterns, performance and reduced-motion rules, common failures | Project using `motion` or legacy `framer-motion` |
+| animejs | Anime.js v4 API shape, v3 → v4 differences, scoping and cleanup in components | Project using `animejs` |
+| shadcn-charts | shadcn/ui chart composition over Recharts, `ChartConfig`, colour-token syntax, sizing and accessibility rules | React project with shadcn/ui and Recharts |
+| agentic-implementation | Rules for AI/agent features plus references on patterns, the technology map, and safety/evals | Agent with repository access; vendor documentation for version-specific details |
 | debugging, writing-tests, code-review, planning-work, git-workflow, verify-before-done | Existing development procedures | Project's normal tools |
+
+The three library skills and `agentic-implementation` are written by wondev (MIT) and are
+not affiliated with or vendored from those projects. They contain no upstream code and
+install no dependency. They record durable patterns and point to official documentation;
+the installed library version and vendor documentation take precedence. The
+`agentic-implementation` references are dated and deliberately omit model names, prices
+and limits. Projects that do not use a library can run `wondev skills disable <name>`.
+
+The antislop skills are copied unchanged, so their own instructions apply as written:
+the core skill asks once per session whether to apply its rules during work or audit
+afterwards, and reads only the `mode` field of an optional global
+`antislop/settings.json` preference. Its update section describes upstream installers;
+for the copy wondev ships, use `wondev upgrade` instead of `npx antislop-ai --update`,
+and avoid installing a second copy through another route in the same project. wondev
+does not run `npx antislop-ai`, the bundled Python scripts, or any installer.
 
 The UI UX data and scripts are from [Next Level Builder](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill)
 at `623a9a9037d006ea727f8213f084d02a6b6f11b5` (MIT). The Understand Anything procedure
 is from [Egonex AI](https://github.com/Egonex-AI/Understand-Anything) at
 `b8c807c632743ab695ec43cb654a0f1efe216bc8` (MIT). Web testing resources are from
 [Anthropic](https://github.com/anthropics/skills/tree/main/skills/webapp-testing) at
-`dbd4588f9e1033efb41dad4bef2f7947c8993d44` (Apache-2.0). Licenses ship inside each skill;
+`dbd4588f9e1033efb41dad4bef2f7947c8993d44` (Apache-2.0). The antislop skills are from
+[Miqdad Badjuber](https://github.com/miqdadbadjuber/anti-slop) at
+`7f6a03df2931c12cb244dc4ab14ee4866b0ac2ba` (MIT, release 3.2.32, the content
+`npx antislop-ai` installs); their references adapted from web-quality-skills keep that
+project's MIT license file. Licenses ship inside each skill;
 adaptations are identified in SKILL.md. `vendor-skills.lock.json` records upstream paths
 and SHA-256 hashes. Maintainers verify it with `npm run test:vendor`; refresh only from
 reviewed checkouts using `scripts/vendor-skills.mjs --from <directory>`.

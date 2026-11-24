@@ -23,7 +23,7 @@ files came from a starter. Add the bundles you want explicitly:
 npx wondev skills catalog
 npx wondev skills install bundled:understand-anything --dry-run
 npx wondev skills install bundled:understand-anything
-# Or explicitly choose all eleven bundles:
+# Or explicitly choose all twenty-one bundles:
 npx wondev skills install bundled:all
 ```
 
